@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 
-const execAsync = promisify(exec);
-
-const NOTEBOOK_ID = '49b5de32-8bf1-4046-bf3e-55fafae57616';
-const NLM_PATH = '/Users/home/.local/bin/nlm';
+const NLM_PROXY_URL = process.env.NLM_PROXY_URL || 'http://localhost:3847';
+const NLM_PROXY_KEY = process.env.NLM_PROXY_KEY || '';
+const NOTEBOOK_ID = '49b5de32-8bf1-4046-bf3e-55fafae57616'; // ACS2025
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,34 +12,38 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Question is required' }, { status: 400 });
     }
 
-    // Build command - escape single quotes in question
-    const escapedQuestion = question.replace(/'/g, "'\\''");
-    let cmd = `${NLM_PATH} notebook query ${NOTEBOOK_ID} '${escapedQuestion}'`;
-
-    // If we have a conversation ID, pass it to maintain context
-    if (conversationId) {
-      cmd += ` --conversation-id ${conversationId}`;
-    }
-
-    const { stdout, stderr } = await execAsync(cmd, {
-      timeout: 60000, // 60s timeout
-      env: { ...process.env, PATH: process.env.PATH + ':/Users/home/.local/bin' },
+    const response = await fetch(`${NLM_PROXY_URL}/query`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(NLM_PROXY_KEY && { 'x-api-key': NLM_PROXY_KEY }),
+      },
+      body: JSON.stringify({
+        question,
+        notebook_id: NOTEBOOK_ID,
+      }),
     });
 
-    if (stderr && !stdout) {
-      console.error('NLM error:', stderr);
-      return NextResponse.json({ error: 'NotebookLM query failed' }, { status: 500 });
+    if (!response.ok) {
+      const text = await response.text();
+      console.error('nlm-proxy error:', response.status, text);
+      return NextResponse.json(
+        { error: 'Failed to query NotebookLM' },
+        { status: 502 },
+      );
     }
 
-    const result = JSON.parse(stdout);
+    const data = await response.json();
 
     return NextResponse.json({
-      answer: result.value?.answer || result.answer || 'No answer returned',
-      conversationId: result.value?.conversation_id || result.conversation_id || null,
+      answer: data.answer ?? '',
+      conversationId: data.conversation_id ?? null,
     });
-  } catch (error: unknown) {
-    console.error('NotebookLM API error:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch (err) {
+    console.error('Chat API error:', err);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }

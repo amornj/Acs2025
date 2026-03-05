@@ -1,16 +1,9 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Bot, User, Loader2, BookOpen, Trash2, Wifi, WifiOff } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Send, Bot, User, Loader2, BookOpen, Trash2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useACSStore } from '@/store/acsStore';
-
-// Local NLM server endpoints to try (in order)
-const NLM_ENDPOINTS = [
-  'http://localhost:3100',           // Local dev
-  'http://100.117.54.7:3100',       // Tailscale VPN
-  'http://192.168.1.36:3100',       // LAN
-];
 
 interface Message {
   role: 'user' | 'assistant';
@@ -23,8 +16,6 @@ export default function NotebookLMPage() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const [serverUrl, setServerUrl] = useState<string | null>(null);
-  const [serverStatus, setServerStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -36,35 +27,6 @@ export default function NotebookLMPage() {
     scrollToBottom();
   }, [nlmHistory]);
 
-  // Auto-discover the local NLM server
-  const discoverServer = useCallback(async () => {
-    setServerStatus('checking');
-    for (const endpoint of NLM_ENDPOINTS) {
-      try {
-        const res = await fetch(`${endpoint}/health`, {
-          signal: AbortSignal.timeout(3000),
-        });
-        if (res.ok) {
-          setServerUrl(endpoint);
-          setServerStatus('connected');
-          console.log(`NLM server found at ${endpoint}`);
-          return;
-        }
-      } catch {
-        // Try next endpoint
-      }
-    }
-    setServerUrl(null);
-    setServerStatus('disconnected');
-  }, []);
-
-  useEffect(() => {
-    discoverServer();
-    // Re-check every 30s
-    const interval = setInterval(discoverServer, 30000);
-    return () => clearInterval(interval);
-  }, [discoverServer]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || loading) return;
@@ -75,18 +37,9 @@ export default function NotebookLMPage() {
     // Add user message
     addNlmMessage({ role: 'user', content: question, timestamp: Date.now() });
 
-    if (!serverUrl) {
-      addNlmMessage({
-        role: 'assistant',
-        content: '⚠️ Cannot reach the NotebookLM server. Make sure:\n1. The NLM server is running on your iMac (`node server/nlm-server.js`)\n2. You are connected via Tailscale VPN or on the same local network',
-        timestamp: Date.now(),
-      });
-      return;
-    }
-
     setLoading(true);
     try {
-      const res = await fetch(`${serverUrl}/api/notebooklm`, {
+      const res = await fetch(`/api/notebooklm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question, conversationId }),
@@ -154,45 +107,22 @@ export default function NotebookLMPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            {/* Connection status */}
+          {nlmHistory.length > 0 && (
             <button
-              onClick={discoverServer}
-              className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full ${
-                serverStatus === 'connected'
-                  ? 'bg-green-100 text-green-700'
-                  : serverStatus === 'checking'
-                  ? 'bg-yellow-100 text-yellow-700'
-                  : 'bg-red-100 text-red-700'
-              }`}
-              title={serverUrl || 'Not connected — click to retry'}
+              onClick={() => {
+                clearNlmHistory();
+                setConversationId(null);
+              }}
+              className="flex items-center gap-1 text-sm text-gray-400 hover:text-red-500 transition-colors"
             >
-              {serverStatus === 'connected' ? (
-                <><Wifi className="h-3 w-3" /> Connected</>
-              ) : serverStatus === 'checking' ? (
-                <><Loader2 className="h-3 w-3 animate-spin" /> Connecting...</>
-              ) : (
-                <><WifiOff className="h-3 w-3" /> Disconnected</>
-              )}
+              <Trash2 className="h-4 w-4" />
+              Clear
             </button>
-
-            {nlmHistory.length > 0 && (
-              <button
-                onClick={() => {
-                  clearNlmHistory();
-                  setConversationId(null);
-                }}
-                className="flex items-center gap-1 text-sm text-gray-400 hover:text-red-500 transition-colors"
-              >
-                <Trash2 className="h-4 w-4" />
-                Clear
-              </button>
-            )}
-          </div>
+          )}
         </div>
         <div className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
           <p className="text-xs text-orange-700">
-            💡 NotebookLM has the full ACS2025 guideline indexed. Requires connection to local server via Tailscale VPN or LAN.
+            💡 NotebookLM has the full ACS2025 guideline indexed. Provides cited answers directly from the source document.
             Conversation context is maintained — follow-up questions work naturally.
           </p>
         </div>
