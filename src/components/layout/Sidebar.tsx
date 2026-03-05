@@ -10,6 +10,7 @@ import {
   Pill,
   ClipboardCheck,
   MessageCircleQuestion,
+  BookOpen,
   Menu,
   X,
   CheckCircle2,
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
   { href: '/medications',  label: 'Medications',         icon: Pill,                   page: 'medications' },
   { href: '/discharge',    label: 'Discharge & Follow-up', icon: ClipboardCheck,       page: 'discharge' },
   { href: '/ask',          label: 'Ask ACS2025',         icon: MessageCircleQuestion,  page: 'ask' },
+  { href: '/notebooklm',   label: 'Ask NotebookLM',      icon: BookOpen,               page: 'notebooklm' },
 ];
 
 export function Sidebar() {

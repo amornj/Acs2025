@@ -173,6 +173,7 @@ interface ACSState {
   medications: MedicationsData;
   discharge: DischargeData;
   askHistory: AskHistoryItem[];
+  nlmHistory: Array<{ role: 'user' | 'assistant'; content: string; timestamp: number }>;
   completedPages: string[];
 
   updateEvaluation: (data: Partial<EvaluationData>) => void;
@@ -182,6 +183,8 @@ interface ACSState {
   updateDischarge: (data: Partial<DischargeData>) => void;
   addAskHistory: (item: AskHistoryItem) => void;
   clearAskHistory: () => void;
+  addNlmMessage: (msg: { role: 'user' | 'assistant'; content: string; timestamp: number }) => void;
+  clearNlmHistory: () => void;
   markPageCompleted: (page: string) => void;
   resetAll: () => void;
 }
@@ -326,6 +329,7 @@ export const useACSStore = create<ACSState>()(
       medications: initialMedications,
       discharge: initialDischarge,
       askHistory: [],
+      nlmHistory: [],
       completedPages: [],
 
       updateEvaluation: (data) =>
@@ -341,6 +345,9 @@ export const useACSStore = create<ACSState>()(
       addAskHistory: (item) =>
         set((s) => ({ askHistory: [item, ...s.askHistory] })),
       clearAskHistory: () => set({ askHistory: [] }),
+      addNlmMessage: (msg) =>
+        set((s) => ({ nlmHistory: [...s.nlmHistory, msg] })),
+      clearNlmHistory: () => set({ nlmHistory: [] }),
       markPageCompleted: (page) =>
         set((s) => ({
           completedPages: s.completedPages.includes(page)
@@ -355,6 +362,7 @@ export const useACSStore = create<ACSState>()(
           medications: initialMedications,
           discharge: initialDischarge,
           askHistory: [],
+          nlmHistory: [],
           completedPages: [],
         }),
     }),
