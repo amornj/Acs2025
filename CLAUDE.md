@@ -11,79 +11,70 @@ A Next.js web app based on the **2025 ACC/AHA/ACEP/NAEMSP/SCAI Guideline for the
 - **Deployment:** Vercel (https://acs2025.vercel.app)
 - **Repo:** https://github.com/amornj/Acs2025.git
 
-## Pages (7 total)
+## Pages (9 total)
 
 | Page | Route | Description |
 |------|-------|-------------|
 | **Home** | `/` | Dashboard with overview |
-| **Evaluation** | `/evaluation` | ECG, hs-troponin 0/1h algorithm, ACS classification (STEMI/NSTEMI/UA) |
-| **Risk** | `/risk` | TIMI score, GRACE score, Killip class, SCAI shock stage |
-| **Reperfusion** | `/reperfusion` | STEMI/NSTE-ACS pathways, fibrinolysis, timing targets, cardiogenic shock |
-| **Medications** | `/medications` | Antiplatelet (P2Y12 selection), anticoag, lipids, beta-blockers, RAAS |
-| **Discharge** | `/discharge` | DAPT duration, lipid targets, cardiac rehab, ICD timing, immunization |
+| **Evaluation** | `/evaluation` | Prehospital pathway (EMS/self-transport), symptom assessment, ECG, hs-troponin 0/1h algorithm, ACS classification |
+| **Risk** | `/risk` | TIMI STEMI (0-14) or TIMI UA/NSTEMI (0-7), GRACE 2.0, Killip class, SCAI shock stage, biomarkers |
+| **Reperfusion** | `/reperfusion` | STEMI pathway, fibrinolytic contraindication checklist, fibrinolysis downstream recs, NSTE-ACS invasive strategy, PCI unsuccessful, CABG pathway, cardiogenic shock, multivessel CAD (STEMI + NSTEMI), mechanical complications |
+| **Medications** | `/medications` | Acute pain & supportive care (O2, NTG, morphine, NSAIDs), antiplatelet (P2Y12), anticoag with dose calculator, lipid therapy (3 pathways: statin-naive/max-tolerated/intolerant), other meds (BB, ACEi/ARB, MRA, SGLT2i, colchicine, PPI), anemia management |
+| **Discharge** | `/discharge` | ARC-HBR criteria (14 major + 6 minor), DAPT duration strategies, lipid follow-up, cardiac rehab, ICD timing, immunization, discharge checklist |
+| **Key Images** | `/key-images` | 6 essential guideline figures with lightbox viewer (Figs 3,4,5,6,8,11) |
 | **Ask ACS2025** | `/ask` | Full-text keyword search across guideline with COR/LOE badges |
-| **Ask NotebookLM** | `/notebooklm` | Chat with Google NotebookLM (AI-powered Q&A from the guideline) |
+| **Ask NotebookLM** | `/notebooklm` | Chat with Google NotebookLM — Brief/Explanatory modes, read aloud, persistent history |
 
 ## Architecture
 
 ### Frontend (Vercel)
-All pages are static except `/api/notebooklm` (legacy, not used in production). The app is fully client-side — Zustand store persists to localStorage.
+All pages are static except `/api/notebooklm` (server-side API route). The app is fully client-side — Zustand store persists to localStorage.
 
-### NotebookLM Server (Local, iMac)
-The "Ask NotebookLM" page requires a **local API server** running on the iMac. This is because NotebookLM is accessed via the `nlm` CLI which only runs locally.
+### NotebookLM Integration
+The "Ask NotebookLM" page uses a **shared NLM proxy server** (same as PE2026 project):
 
-**How it works:**
-1. `node server/nlm-server.js` runs on iMac (port 3100, binds 0.0.0.0)
-2. Frontend auto-discovers the server by trying endpoints in order:
-   - `http://localhost:3100` (local dev)
-   - `http://100.117.54.7:3100` (Tailscale VPN)
-   - `http://192.168.1.36:3100` (LAN)
-3. Connection status shown in UI (green/yellow/red badge)
-4. CORS configured to allow `acs2025.vercel.app`
-
-**To start the server:**
-```bash
-cd /Users/home/projects/ACS2025
-node server/nlm-server.js
-# Or keep it running:
-nohup node server/nlm-server.js > /tmp/nlm-server.log 2>&1 &
-```
+1. Vercel API route (`/api/notebooklm`) calls the NLM proxy server-side
+2. NLM proxy runs on iMac port 3847 (`/Users/home/projects/cto-coach/nlm-proxy/server.js`)
+3. Exposed via **Tailscale Funnel** at `https://homes-imac.tail459031.ts.net`
+4. Vercel env vars: `NLM_PROXY_URL` + `NLM_PROXY_KEY`
+5. No VPN needed on client side — works from any device
 
 **NotebookLM Notebook:** `49b5de32-8bf1-4046-bf3e-55fafae57616` (ACS2025, 1 source: the guideline PDF)
 
 ### Known Issues & Decisions
 
-1. **NotebookLM only works when the local server is running** — the `nlm` CLI cannot run on Vercel serverless functions. This was the initial bug: the Vercel API route tried to exec `/Users/home/.local/bin/nlm` which doesn't exist in the cloud.
-
-2. **NLM auth can expire** — if `nlm` stops working, re-authenticate: `nlm login` (opens Chrome for Google auth on amornj@gmail.com)
-
-3. **NLM queries are slow** — 10-30 seconds per query is normal. The 90-second timeout in the server accounts for this.
-
-4. **Tailscale required for mobile access** — iPhone must be on Tailscale VPN to reach the iMac's NLM server. The app shows a "Disconnected" badge if the server is unreachable.
-
-5. **CORS** — The server allows requests from `acs2025.vercel.app`, `localhost:3000`, and `localhost:3001`. If the Vercel URL changes, update `server/nlm-server.js`.
+1. **NLM auth can expire** — re-authenticate: `nlm login` (Chrome, amornj@gmail.com)
+2. **NLM queries are slow** — 10-30s per query is normal (90s timeout in proxy)
+3. **Zustand migration** — New store fields (arcHbrMajor, arcHbrMinor, timiStemi, statinStatus) have fallback defaults for older persisted state. If a page crashes, user can "Reset All Data" from sidebar.
 
 ## Data Files
 - `ACS2025.pdf` — Original guideline PDF (8.1 MB)
-- `guideline_full_text.txt` — Full extracted text (551K chars, used for Ask ACS2025 search)
+- `guideline_full_text.txt` — Full extracted text (551K chars, for Ask ACS2025 search)
 - `src/data/guidelines.ts` — Structured guideline data for search index
+- `public/images/key-image-*.png` — 6 guideline figures (Figs 3,4,5,6,8,11)
 
 ## Key Components
-- `src/store/acsStore.ts` — Zustand store (all clinical data + chat history)
+- `src/store/acsStore.ts` — Zustand store (evaluation, risk, reperfusion, medications, discharge, chat histories, ARC-HBR)
 - `src/components/ui/CORBadge.tsx` — Class of Recommendation badges (I=green, 2a=yellow, 2b=orange, 3=red)
-- `src/components/ui/LOEBadge.tsx` — Level of Evidence badges
+- `src/components/ui/LOEBadge.tsx` — Level of Evidence badges (gray pills)
 - `src/components/ui/SummaryBox.tsx` — Clinical summary boxes at bottom of each step
-- `src/components/layout/Sidebar.tsx` — Navigation with progress indicators
-- `server/nlm-server.js` — Local NotebookLM API server
+- `src/components/layout/Sidebar.tsx` — Navigation with progress indicators + Reset All Data
+- `src/app/api/notebooklm/route.ts` — Server-side API route calling NLM proxy
 
 ## Development
 ```bash
 npm install
 npm run dev          # Frontend on localhost:3000
-node server/nlm-server.js  # NLM API on localhost:3100
 ```
 
 ## Deployment
 ```bash
 npx vercel --prod --yes --name acs2025
 ```
+
+## Store Types (key interfaces)
+- `EvaluationData` — ECG findings, troponin pathway, symptoms, ACS type
+- `RiskData` — TIMI (UA/NSTEMI), TIMI STEMI, GRACE 2.0, Killip, SCAI, biomarkers
+- `ReperfusionData` — PCI capability, timing, strategy, shock, MVD, fibrinolytic agent, invasive strategy
+- `MedicationsData` — Antiplatelet, anticoag, lipid (with statinStatus: naive/max-tolerated/intolerant), other meds
+- `DischargeData` — DAPT plan, ARC-HBR (14 major + 6 minor criteria), rehab, ICD, checklist
