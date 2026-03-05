@@ -103,6 +103,7 @@ export interface AnticoagPlan {
 }
 
 export interface LipidPlan {
+  statinStatus: 'naive' | 'max-tolerated' | 'intolerant' | null;
   highIntensityStatin: boolean;
   statinAgent: string;
   ldlcBaseline: number | null;
@@ -170,6 +171,32 @@ export interface MedicationsData {
   otherMeds: OtherMedsPlan;
 }
 
+export interface ArcHbrMajor {
+  oac: boolean;
+  severeCkd: boolean;
+  hbBelow11: boolean;
+  bleedingHosp6mo: boolean;
+  thrombocytopenia: boolean;
+  bleedingDiathesis: boolean;
+  cirrhosis: boolean;
+  activeMalignancy: boolean;
+  priorSpontaneousIch: boolean;
+  priorTraumaticIch12mo: boolean;
+  brainAvm: boolean;
+  ischemicStroke6mo: boolean;
+  nonDeferrableSurgery: boolean;
+  recentMajorSurgery30d: boolean;
+}
+
+export interface ArcHbrMinor {
+  age75: boolean;
+  moderateCkd: boolean;
+  hb11to13: boolean;
+  bleedingHosp12mo: boolean;
+  chronicNsaidSteroid: boolean;
+  anyIschemicStroke: boolean;
+}
+
 export interface DischargeData {
   daptPlan: DAPTPlan;
   lipidFollowupWeeks: number;
@@ -178,6 +205,8 @@ export interface DischargeData {
   icdIndicated: boolean;
   influenzaVaccine: boolean;
   dischargeChecklist: string[];
+  arcHbrMajor: ArcHbrMajor;
+  arcHbrMinor: ArcHbrMinor;
 }
 
 interface ACSState {
@@ -314,6 +343,7 @@ const initialMedications: MedicationsData = {
     dose: '',
   },
   lipid: {
+    statinStatus: null,
     highIntensityStatin: false,
     statinAgent: '',
     ldlcBaseline: null,
@@ -333,6 +363,19 @@ const initialMedications: MedicationsData = {
   },
 };
 
+const initialArcHbrMajor: ArcHbrMajor = {
+  oac: false, severeCkd: false, hbBelow11: false, bleedingHosp6mo: false,
+  thrombocytopenia: false, bleedingDiathesis: false, cirrhosis: false,
+  activeMalignancy: false, priorSpontaneousIch: false, priorTraumaticIch12mo: false,
+  brainAvm: false, ischemicStroke6mo: false, nonDeferrableSurgery: false,
+  recentMajorSurgery30d: false,
+};
+
+const initialArcHbrMinor: ArcHbrMinor = {
+  age75: false, moderateCkd: false, hb11to13: false,
+  bleedingHosp12mo: false, chronicNsaidSteroid: false, anyIschemicStroke: false,
+};
+
 const initialDischarge: DischargeData = {
   daptPlan: {
     duration: 12,
@@ -346,6 +389,8 @@ const initialDischarge: DischargeData = {
   icdIndicated: false,
   influenzaVaccine: false,
   dischargeChecklist: [],
+  arcHbrMajor: initialArcHbrMajor,
+  arcHbrMinor: initialArcHbrMinor,
 };
 
 export const useACSStore = create<ACSState>()(

@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useMemo } from 'react';
-import { ClipboardCheck } from 'lucide-react';
-import { useACSStore } from '@/store/acsStore';
+import { ClipboardCheck, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { useACSStore, type ArcHbrMajor, type ArcHbrMinor } from '@/store/acsStore';
 import { SummaryBox } from '@/components/ui/SummaryBox';
 import { CORBadge } from '@/components/ui/CORBadge';
 import { LOEBadge } from '@/components/ui/LOEBadge';
@@ -28,8 +28,20 @@ const DISCHARGE_CHECKLIST_ITEMS = [
 
 export default function DischargePage() {
   const { discharge, medications, updateDischarge, markPageCompleted } = useACSStore();
-  const { daptPlan, lipidFollowupWeeks, rehabReferral, rehabType, icdIndicated, influenzaVaccine, dischargeChecklist } = discharge;
+  const { daptPlan, lipidFollowupWeeks, rehabReferral, rehabType, icdIndicated, influenzaVaccine, dischargeChecklist, arcHbrMajor, arcHbrMinor } = discharge;
   const lvef = medications.otherMeds.lvef;
+
+  const updateArcMajor = useCallback((u: Partial<ArcHbrMajor>) => {
+    updateDischarge({ arcHbrMajor: { ...arcHbrMajor, ...u } });
+  }, [arcHbrMajor, updateDischarge]);
+
+  const updateArcMinor = useCallback((u: Partial<ArcHbrMinor>) => {
+    updateDischarge({ arcHbrMinor: { ...arcHbrMinor, ...u } });
+  }, [arcHbrMinor, updateDischarge]);
+
+  const majorCount = useMemo(() => Object.values(arcHbrMajor).filter(Boolean).length, [arcHbrMajor]);
+  const minorCount = useMemo(() => Object.values(arcHbrMinor).filter(Boolean).length, [arcHbrMinor]);
+  const isArcHbr = majorCount >= 1 || minorCount >= 2;
 
   const updateDAPT = useCallback((u: Partial<typeof daptPlan>) => {
     updateDischarge({ daptPlan: { ...daptPlan, ...u } });
@@ -48,10 +60,10 @@ export default function DischargePage() {
 
   // DAPT strategy recommendation
   const daptRecommendation = useMemo(() => {
-    if (daptPlan.onOAC) return 'OAC patients: Triple therapy 1-4 weeks → drop aspirin → OAC + clopidogrel (Class I, LOE A)';
-    if (daptPlan.highBleedingRisk) return 'High bleeding risk: Abbreviated DAPT 1-3 months → P2Y12 monotherapy (Class 2b, LOE B-R)';
+    if (daptPlan.onOAC) return 'OAC patients: Triple therapy 1-4 weeks -> drop aspirin -> OAC + clopidogrel (Class I, LOE A)';
+    if (daptPlan.highBleedingRisk || isArcHbr) return 'High bleeding risk (ARC-HBR+): Abbreviated DAPT 1-3 months -> P2Y12 monotherapy (Class 2b, LOE B-R)';
     return 'Standard: DAPT for 12 months (Class I, LOE A). Consider ticagrelor monotherapy after >=1 month (Class I, LOE A).';
-  }, [daptPlan.onOAC, daptPlan.highBleedingRisk]);
+  }, [daptPlan.onOAC, daptPlan.highBleedingRisk, isArcHbr]);
 
   const summaryItems = useMemo(() => {
     const lines: string[] = [];
@@ -84,6 +96,105 @@ export default function DischargePage() {
           <p className="text-sm text-gray-500">DAPT duration, lipid targets, rehab, ICD timing</p>
         </div>
       </div>
+
+      {/* ARC-HBR Criteria */}
+      <section className={cn(
+        'rounded-lg border p-5 shadow-sm',
+        isArcHbr ? 'border-red-300 bg-red-50' : 'bg-white'
+      )}>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">ARC-HBR Bleeding Risk Assessment</h2>
+            <p className="text-xs text-gray-500">Academic Research Consortium - High Bleeding Risk criteria</p>
+          </div>
+          <div className={cn(
+            'rounded-full px-3 py-1 text-sm font-bold',
+            isArcHbr ? 'bg-red-600 text-white' : 'bg-green-100 text-green-800'
+          )}>
+            {isArcHbr ? (
+              <span className="flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> HBR</span>
+            ) : (
+              <span className="flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5" /> Not HBR</span>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-md bg-gray-50 border p-3 mb-4">
+          <p className="text-xs text-gray-600">
+            <strong>Definition:</strong> ARC-HBR positive = <strong>&ge;1 major</strong> criterion OR <strong>&ge;2 minor</strong> criteria.
+            {majorCount > 0 && <span className="text-red-700 font-medium"> Major: {majorCount}.</span>}
+            {minorCount > 0 && <span className="text-amber-700 font-medium"> Minor: {minorCount}.</span>}
+          </p>
+        </div>
+
+        {/* Major Criteria */}
+        <div className="mb-4">
+          <h3 className="text-sm font-bold text-red-800 mb-2 flex items-center gap-1">
+            Major Criteria <span className="text-xs font-normal text-red-600">(any single = HBR)</span>
+          </h3>
+          <div className="space-y-1.5">
+            {([
+              ['oac', 'Anticipated use of long-term OAC (warfarin or DOAC)'],
+              ['severeCkd', 'Severe or end-stage CKD (eGFR <30 mL/min)'],
+              ['hbBelow11', 'Hemoglobin <11 g/dL'],
+              ['bleedingHosp6mo', 'Spontaneous bleeding requiring hospitalization or transfusion in past 6 months'],
+              ['thrombocytopenia', 'Thrombocytopenia (platelet count <100,000/uL)'],
+              ['bleedingDiathesis', 'Chronic bleeding diathesis'],
+              ['cirrhosis', 'Liver cirrhosis with portal hypertension'],
+              ['activeMalignancy', 'Active malignancy (excluding non-melanoma skin cancer) within 12 months'],
+              ['priorSpontaneousIch', 'Prior spontaneous intracranial hemorrhage (any time)'],
+              ['priorTraumaticIch12mo', 'Prior traumatic ICH within past 12 months'],
+              ['brainAvm', 'Brain arteriovenous malformation (AVM)'],
+              ['ischemicStroke6mo', 'Moderate or severe ischemic stroke within past 6 months'],
+              ['nonDeferrableSurgery', 'Non-deferrable major surgery on DAPT'],
+              ['recentMajorSurgery30d', 'Recent major surgery or major trauma within 30 days'],
+            ] as [keyof ArcHbrMajor, string][]).map(([key, label]) => (
+              <label key={key} className="flex items-center gap-2 py-1 px-2 rounded hover:bg-red-50 cursor-pointer">
+                <input type="checkbox" checked={arcHbrMajor[key]} onChange={(e) => updateArcMajor({ [key]: e.target.checked })}
+                  className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500" />
+                <span className={cn('text-sm', arcHbrMajor[key] ? 'text-red-800 font-medium' : 'text-gray-700')}>{label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Minor Criteria */}
+        <div>
+          <h3 className="text-sm font-bold text-amber-800 mb-2 flex items-center gap-1">
+            Minor Criteria <span className="text-xs font-normal text-amber-600">(&ge;2 = HBR)</span>
+          </h3>
+          <div className="space-y-1.5">
+            {([
+              ['age75', 'Age &ge;75 years'],
+              ['moderateCkd', 'Moderate CKD (eGFR 30-59 mL/min)'],
+              ['hb11to13', 'Hemoglobin 11-12.9 g/dL (men) or 11-11.9 g/dL (women)'],
+              ['bleedingHosp12mo', 'Spontaneous bleeding requiring hospitalization or transfusion in past 12 months'],
+              ['chronicNsaidSteroid', 'Chronic use of NSAIDs or corticosteroids'],
+              ['anyIschemicStroke', 'Any ischemic stroke at any time'],
+            ] as [keyof ArcHbrMinor, string][]).map(([key, label]) => (
+              <label key={key} className="flex items-center gap-2 py-1 px-2 rounded hover:bg-amber-50 cursor-pointer">
+                <input type="checkbox" checked={arcHbrMinor[key]} onChange={(e) => updateArcMinor({ [key]: e.target.checked })}
+                  className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500" />
+                <span className={cn('text-sm', arcHbrMinor[key] ? 'text-amber-800 font-medium' : 'text-gray-700')} dangerouslySetInnerHTML={{ __html: label }} />
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* HBR Result + Recommendation */}
+        {isArcHbr && (
+          <div className="mt-4 rounded-md bg-red-100 border border-red-300 p-3">
+            <p className="text-sm font-bold text-red-900 flex items-center gap-1">
+              <AlertTriangle className="h-4 w-4" /> ARC-HBR Positive -- High Bleeding Risk
+            </p>
+            <p className="text-xs text-red-800 mt-1">
+              Consider abbreviated DAPT (1-3 months) followed by P2Y12 monotherapy (Class 2b, LOE B-R).
+              Avoid prasugrel in patients with prior stroke/TIA.
+              Use PPI with DAPT. Carefully weigh ischemic vs bleeding risk.
+            </p>
+          </div>
+        )}
+      </section>
 
       {/* DAPT Duration Calculator */}
       <section className="rounded-lg border bg-white p-5 shadow-sm">

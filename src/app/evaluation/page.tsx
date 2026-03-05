@@ -119,6 +119,105 @@ export default function EvaluationPage() {
       {/* Prehospital / Arrival Pathway */}
       <PrehospitalPathway />
 
+      {/* Symptom Assessment — comes first in clinical encounter */}
+      <section className="rounded-lg border bg-white p-5 shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Symptom Assessment</h2>
+
+        <label className="flex items-center gap-2 mb-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={symptoms.chestPain}
+            onChange={(e) => updateSymptoms({ chestPain: e.target.checked })}
+            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          <span className="text-sm text-gray-700">Chest pain / discomfort present</span>
+        </label>
+
+        {symptoms.chestPain && (
+          <div className="space-y-4 ml-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Chest Pain Type</label>
+              <div className="flex flex-wrap gap-2">
+                {(['typical', 'atypical', 'non-cardiac'] as const).map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => updateSymptoms({ chestPainType: type })}
+                    className={cn(
+                      'rounded-full px-3 py-1 text-sm border transition-colors',
+                      symptoms.chestPainType === type
+                        ? 'bg-blue-100 border-blue-400 text-blue-800'
+                        : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+                    )}
+                  >
+                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Onset</label>
+              <div className="flex flex-wrap gap-2">
+                {(['acute', 'subacute', 'chronic'] as const).map((o) => (
+                  <button
+                    key={o}
+                    onClick={() => updateSymptoms({ onset: o })}
+                    className={cn(
+                      'rounded-full px-3 py-1 text-sm border transition-colors',
+                      symptoms.onset === o
+                        ? 'bg-blue-100 border-blue-400 text-blue-800'
+                        : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+                    )}
+                  >
+                    {o.charAt(0).toUpperCase() + o.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Radiation</label>
+              <div className="flex flex-wrap gap-2">
+                {RADIATION_OPTIONS.map((item) => (
+                  <button
+                    key={item}
+                    onClick={() => toggleRadiation(item)}
+                    className={cn(
+                      'rounded-full px-3 py-1 text-sm border transition-colors',
+                      symptoms.radiation.includes(item)
+                        ? 'bg-blue-100 border-blue-400 text-blue-800'
+                        : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+                    )}
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Associated Symptoms</label>
+              <div className="flex flex-wrap gap-2">
+                {ASSOCIATED_SYMPTOMS.map((item) => (
+                  <button
+                    key={item}
+                    onClick={() => toggleAssociated(item)}
+                    className={cn(
+                      'rounded-full px-3 py-1 text-sm border transition-colors',
+                      symptoms.associatedSymptoms.includes(item)
+                        ? 'bg-blue-100 border-blue-400 text-blue-800'
+                        : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+                    )}
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+
       {/* ECG Classification */}
       <section className="rounded-lg border bg-white p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">ECG Classification</h2>
@@ -254,105 +353,6 @@ export default function EvaluationPage() {
             {troponin.result === 'rule-out' && 'RULE-OUT: Troponin below threshold with no significant delta. MI unlikely (NPV >99.5%).'}
             {troponin.result === 'rule-in' && 'RULE-IN: Troponin elevated or significant delta. Acute MI likely. Proceed with invasive strategy.'}
             {troponin.result === 'observe' && 'OBSERVE ZONE: Indeterminate result. Recommend repeat troponin at 3 hours.'}
-          </div>
-        )}
-      </section>
-
-      {/* Symptom Assessment */}
-      <section className="rounded-lg border bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Symptom Assessment</h2>
-
-        <label className="flex items-center gap-2 mb-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={symptoms.chestPain}
-            onChange={(e) => updateSymptoms({ chestPain: e.target.checked })}
-            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-          />
-          <span className="text-sm text-gray-700">Chest pain / discomfort present</span>
-        </label>
-
-        {symptoms.chestPain && (
-          <div className="space-y-4 ml-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Chest Pain Type</label>
-              <div className="flex flex-wrap gap-2">
-                {(['typical', 'atypical', 'non-cardiac'] as const).map((type) => (
-                  <button
-                    key={type}
-                    onClick={() => updateSymptoms({ chestPainType: type })}
-                    className={cn(
-                      'rounded-full px-3 py-1 text-sm border transition-colors',
-                      symptoms.chestPainType === type
-                        ? 'bg-blue-100 border-blue-400 text-blue-800'
-                        : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
-                    )}
-                  >
-                    {type.charAt(0).toUpperCase() + type.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Onset</label>
-              <div className="flex flex-wrap gap-2">
-                {(['acute', 'subacute', 'chronic'] as const).map((o) => (
-                  <button
-                    key={o}
-                    onClick={() => updateSymptoms({ onset: o })}
-                    className={cn(
-                      'rounded-full px-3 py-1 text-sm border transition-colors',
-                      symptoms.onset === o
-                        ? 'bg-blue-100 border-blue-400 text-blue-800'
-                        : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
-                    )}
-                  >
-                    {o.charAt(0).toUpperCase() + o.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Radiation</label>
-              <div className="flex flex-wrap gap-2">
-                {RADIATION_OPTIONS.map((item) => (
-                  <button
-                    key={item}
-                    onClick={() => toggleRadiation(item)}
-                    className={cn(
-                      'rounded-full px-3 py-1 text-sm border transition-colors',
-                      symptoms.radiation.includes(item)
-                        ? 'bg-blue-100 border-blue-400 text-blue-800'
-                        : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
-                    )}
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Associated Symptoms</label>
-              <div className="flex flex-wrap gap-2">
-                {ASSOCIATED_SYMPTOMS.map((item) => (
-                  <button
-                    key={item}
-                    onClick={() => toggleAssociated(item)}
-                    className={cn(
-                      'rounded-full px-3 py-1 text-sm border transition-colors',
-                      symptoms.associatedSymptoms.includes(item)
-                        ? 'bg-blue-100 border-blue-400 text-blue-800'
-                        : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
-                    )}
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
         )}
       </section>

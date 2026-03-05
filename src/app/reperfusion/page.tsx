@@ -1,12 +1,37 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
-import { Heart, AlertTriangle, ArrowRight } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { Heart, AlertTriangle, ArrowRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { useACSStore } from '@/store/acsStore';
 import { SummaryBox } from '@/components/ui/SummaryBox';
 import { CORBadge } from '@/components/ui/CORBadge';
 import { LOEBadge } from '@/components/ui/LOEBadge';
 import { cn } from '@/lib/utils';
+
+const ABSOLUTE_CONTRAINDICATIONS = [
+  'Prior intracranial hemorrhage (any time)',
+  'Known intracranial neoplasm (primary or metastatic)',
+  'Known cerebral vascular malformation (AVM)',
+  'Active bleeding or bleeding diathesis (excluding menses)',
+  'Suspected aortic dissection',
+  'Severe uncontrolled hypertension (unresponsive to emergency therapy)',
+  'Significant head/facial trauma within 3 months',
+  'Ischemic stroke within 3 months',
+  'For streptokinase: prior treatment within 6 months',
+];
+
+const RELATIVE_CONTRAINDICATIONS = [
+  'Chronic, poorly controlled hypertension (>180/110)',
+  'Current use of anticoagulants (higher INR = higher risk)',
+  'Non-compressible vascular puncture',
+  'Traumatic or prolonged CPR (>10 minutes)',
+  'Major surgery within 3 weeks',
+  'Recent internal bleeding (2-4 weeks)',
+  'Pregnancy',
+  'Active peptic ulcer disease',
+  'Dementia or intracranial pathology not covered above',
+  'Prior ischemic stroke >3 months ago',
+];
 
 export default function ReperfusionPage() {
   const { evaluation, reperfusion, updateReperfusion, markPageCompleted } = useACSStore();
@@ -27,7 +52,6 @@ export default function ReperfusionPage() {
     if (symptomOnsetHours == null) return null;
     if (symptomOnsetHours > 24) return 'No routine PCI for stable, occluded artery >24h (Class III)';
     if (symptomOnsetHours >= 12) return 'PCI reasonable for ongoing ischemia (Class 2a)';
-    // <12h
     if (pciCapable === true) return 'Primary PCI at this facility. Goal: FMC-to-device <=90 min (Class I)';
     if (pciCapable === false) {
       if (transferTimeMins != null && transferTimeMins <= 120) {
@@ -48,7 +72,7 @@ export default function ReperfusionPage() {
     const lines: string[] = [];
     if (acsType === 'stemi') {
       lines.push('ACS Type: STEMI pathway active.');
-      if (shockPresent) lines.push('Cardiogenic shock present — emergency PCI indicated regardless of timing.');
+      if (shockPresent) lines.push('Cardiogenic shock present -- emergency PCI indicated regardless of timing.');
       if (symptomOnsetHours != null) lines.push(`Symptom onset: ${symptomOnsetHours}h ago.`);
       if (pciCapable != null) lines.push(`PCI-capable hospital: ${pciCapable ? 'Yes' : 'No'}.`);
       if (stemiStrategy) lines.push(`Strategy: ${stemiStrategy}.`);
@@ -58,7 +82,7 @@ export default function ReperfusionPage() {
         const labels: Record<string, string> = {
           immediate: 'Immediate invasive (<2h): refractory angina, hemodynamic/electrical instability, acute HF',
           early: 'Early invasive (<24h): GRACE >140, troponin changes, new ST changes',
-          selective: 'Selective invasive: low-risk, negative troponin, no recurrent symptoms',
+          selective: 'Selective/routine invasive: low-risk features, CAG before discharge recommended',
         };
         lines.push(`Strategy: ${labels[invasiveStrategy]}.`);
       }
@@ -93,7 +117,7 @@ export default function ReperfusionPage() {
         </div>
       )}
 
-      {/* STEMI Pathway */}
+      {/* ========== SECTION 1: STEMI Reperfusion Pathway ========== */}
       {acsType === 'stemi' && (
         <section className="rounded-lg border bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -178,10 +202,15 @@ export default function ReperfusionPage() {
         </section>
       )}
 
-      {/* Downstream Recommendations for Fibrinolysis */}
+      {/* ========== SECTION 1b: Fibrinolytic Contraindications ========== */}
+      {acsType === 'stemi' && stemiStrategy?.includes('Fibrinolysis') && (
+        <FibrinolyticContraindications />
+      )}
+
+      {/* ========== SECTION 1c: Fibrinolysis Downstream Recommendations ========== */}
       {acsType === 'stemi' && stemiStrategy?.includes('Fibrinolysis') && (
         <section className="rounded-lg border border-amber-200 bg-amber-50 p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Fibrinolysis Pathway — Downstream Recommendations</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Fibrinolysis Pathway -- Downstream Recommendations</h2>
           <div className="space-y-3">
             <div className="rounded-md bg-white border p-3">
               <div className="flex items-center justify-between mb-1">
@@ -225,7 +254,7 @@ export default function ReperfusionPage() {
                 <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="B-R" /></div>
               </div>
               <p className="text-xs text-red-700">
-                If &lt;50% ST-resolution at 60-90 min post-lysis → immediate rescue PCI<br />
+                If &lt;50% ST-resolution at 60-90 min post-lysis -- immediate rescue PCI<br />
                 Also indicated for hemodynamic instability or worsening ischemia
               </p>
             </div>
@@ -233,7 +262,89 @@ export default function ReperfusionPage() {
         </section>
       )}
 
-      {/* CABG Pathway Recommendations */}
+      {/* ========== SECTION 2: NSTE-ACS Invasive Strategy ========== */}
+      {(acsType === 'nstemi' || acsType === 'ua') && (
+        <section className="rounded-lg border bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">NSTE-ACS Invasive Strategy</h2>
+          <div className="space-y-3">
+            <button onClick={() => update({ invasiveStrategy: 'immediate' })}
+              className={cn('w-full rounded-lg border-2 p-4 text-left transition-all',
+                invasiveStrategy === 'immediate' ? 'bg-red-50 border-red-400' : 'bg-white border-gray-200 hover:border-gray-400')}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-semibold text-gray-900">Immediate Invasive (&lt;2 hours)</span>
+                <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="B-NR" /></div>
+              </div>
+              <p className="text-xs text-gray-600">Refractory angina, hemodynamic instability, electrical instability (recurrent VT/VF), acute heart failure</p>
+            </button>
+
+            <button onClick={() => update({ invasiveStrategy: 'early' })}
+              className={cn('w-full rounded-lg border-2 p-4 text-left transition-all',
+                invasiveStrategy === 'early' ? 'bg-amber-50 border-amber-400' : 'bg-white border-gray-200 hover:border-gray-400')}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-semibold text-gray-900">Early Invasive (&lt;24 hours)</span>
+                <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="A" /></div>
+              </div>
+              <p className="text-xs text-gray-600">GRACE &gt;140, troponin rise/fall consistent with MI, new ST-segment changes</p>
+            </button>
+
+            <button onClick={() => update({ invasiveStrategy: 'selective' })}
+              className={cn('w-full rounded-lg border-2 p-4 text-left transition-all',
+                invasiveStrategy === 'selective' ? 'bg-green-50 border-green-400' : 'bg-white border-gray-200 hover:border-gray-400')}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-semibold text-gray-900">Low Risk: Routine Invasive or Selective Invasive</span>
+                <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="A" /></div>
+              </div>
+              <p className="text-xs text-gray-600">Low-risk features, negative or low-level troponin, no recurrent symptoms, low TIMI/GRACE. Both routine invasive and ischemia-guided strategies are reasonable.</p>
+            </button>
+
+            {invasiveStrategy === 'selective' && (
+              <div className="rounded-md bg-blue-50 border border-blue-200 p-3 ml-4">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-semibold text-blue-900">CAG before hospital discharge</span>
+                  <div className="flex gap-1"><CORBadge level="2a" /><LOEBadge level="B-R" /></div>
+                </div>
+                <p className="text-xs text-blue-700">Even with initial selective/ischemia-guided approach, coronary angiography before hospital discharge is reasonable to define anatomy and guide further management.</p>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ========== SECTION 3: PCI Unsuccessful / Complications ========== */}
+      {acsType && (
+        <section className="rounded-lg border bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">If PCI Unsuccessful / Complications</h2>
+          <div className="space-y-3">
+            <div className="rounded-md border p-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-semibold text-gray-900">Emergency CABG consideration</span>
+                <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="B-NR" /></div>
+              </div>
+              <p className="text-xs text-gray-600">For failed PCI with ongoing ischemia, dissection, or threatened vessel closure</p>
+            </div>
+            <div className="rounded-md border p-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-semibold text-gray-900">No-reflow: GPI may be reasonable</span>
+                <div className="flex gap-1"><CORBadge level="2b" /><LOEBadge level="C-LD" /></div>
+              </div>
+              <p className="text-xs text-gray-600">Intracoronary GPI (abciximab, eptifibatide) for no-reflow phenomenon</p>
+            </div>
+            <div className="rounded-md border p-3">
+              <span className="text-sm font-semibold text-gray-900">Continue DAPT</span>
+              <p className="text-xs text-gray-600 mt-1">Maintain aspirin + P2Y12 inhibitor. If stent deployed before complication, stent thrombosis prevention is critical.</p>
+            </div>
+            <div className="rounded-md border p-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-semibold text-gray-900">MCS for hemodynamic compromise</span>
+                <div className="flex gap-1"><CORBadge level="2a" /><LOEBadge level="B-R" /></div>
+              </div>
+              <p className="text-xs text-gray-600">Impella or IABP if hemodynamic compromise post-failed PCI pending CABG</p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ========== SECTION 4: CABG Pathway ========== */}
       {acsType && (
         <section className="rounded-lg border bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">If Proceeding to CABG</h2>
@@ -279,79 +390,7 @@ export default function ReperfusionPage() {
         </section>
       )}
 
-      {/* Unsuccessful PCI / Failed PCI */}
-      {acsType && (
-        <section className="rounded-lg border bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">If PCI Unsuccessful / Complications</h2>
-          <div className="space-y-3">
-            <div className="rounded-md border p-3">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-semibold text-gray-900">Emergency CABG consideration</span>
-                <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="B-NR" /></div>
-              </div>
-              <p className="text-xs text-gray-600">For failed PCI with ongoing ischemia, dissection, or threatened vessel closure</p>
-            </div>
-            <div className="rounded-md border p-3">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-semibold text-gray-900">No-reflow: GPI may be reasonable</span>
-                <div className="flex gap-1"><CORBadge level="2b" /><LOEBadge level="C-LD" /></div>
-              </div>
-              <p className="text-xs text-gray-600">Intracoronary GPI (abciximab, eptifibatide) for no-reflow phenomenon</p>
-            </div>
-            <div className="rounded-md border p-3">
-              <span className="text-sm font-semibold text-gray-900">Continue DAPT</span>
-              <p className="text-xs text-gray-600 mt-1">Maintain aspirin + P2Y12 inhibitor. If stent deployed before complication, stent thrombosis prevention is critical.</p>
-            </div>
-            <div className="rounded-md border p-3">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-semibold text-gray-900">MCS for hemodynamic compromise</span>
-                <div className="flex gap-1"><CORBadge level="2a" /><LOEBadge level="B-R" /></div>
-              </div>
-              <p className="text-xs text-gray-600">Impella or IABP if hemodynamic compromise post-failed PCI pending CABG</p>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* NSTE-ACS Pathway */}
-      {(acsType === 'nstemi' || acsType === 'ua') && (
-        <section className="rounded-lg border bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">NSTE-ACS Invasive Strategy</h2>
-          <div className="space-y-3">
-            <button onClick={() => update({ invasiveStrategy: 'immediate' })}
-              className={cn('w-full rounded-lg border-2 p-4 text-left transition-all',
-                invasiveStrategy === 'immediate' ? 'bg-red-50 border-red-400' : 'bg-white border-gray-200 hover:border-gray-400')}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-semibold text-gray-900">Immediate Invasive (&lt;2 hours)</span>
-                <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="B-NR" /></div>
-              </div>
-              <p className="text-xs text-gray-600">Refractory angina, hemodynamic instability, electrical instability (recurrent VT/VF), acute heart failure</p>
-            </button>
-
-            <button onClick={() => update({ invasiveStrategy: 'early' })}
-              className={cn('w-full rounded-lg border-2 p-4 text-left transition-all',
-                invasiveStrategy === 'early' ? 'bg-amber-50 border-amber-400' : 'bg-white border-gray-200 hover:border-gray-400')}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-semibold text-gray-900">Early Invasive (&lt;24 hours)</span>
-                <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="A" /></div>
-              </div>
-              <p className="text-xs text-gray-600">GRACE &gt;140, troponin rise/fall consistent with MI, new ST-segment changes</p>
-            </button>
-
-            <button onClick={() => update({ invasiveStrategy: 'selective' })}
-              className={cn('w-full rounded-lg border-2 p-4 text-left transition-all',
-                invasiveStrategy === 'selective' ? 'bg-green-50 border-green-400' : 'bg-white border-gray-200 hover:border-gray-400')}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-semibold text-gray-900">Selective Invasive</span>
-                <div className="flex gap-1"><CORBadge level="2a" /><LOEBadge level="B-R" /></div>
-              </div>
-              <p className="text-xs text-gray-600">Low-risk features, negative troponin, no recurrent symptoms, low TIMI/GRACE score</p>
-            </button>
-          </div>
-        </section>
-      )}
-
-      {/* Cardiogenic Shock Algorithm */}
+      {/* ========== SECTION 5: Cardiogenic Shock ========== */}
       {acsType && (
         <section className="rounded-lg border bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Cardiogenic Shock Management</h2>
@@ -390,7 +429,7 @@ export default function ReperfusionPage() {
         </section>
       )}
 
-      {/* Multivessel Disease */}
+      {/* ========== SECTION 6: Multivessel CAD ========== */}
       {acsType && (
         <section className="rounded-lg border bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Multivessel Coronary Artery Disease</h2>
@@ -402,7 +441,6 @@ export default function ReperfusionPage() {
 
           {multivesselDisease && (
             <div className="space-y-3">
-              {/* STEMI + No Shock */}
               {acsType === 'stemi' && !shockPresent && (
                 <>
                   <div className="rounded-md bg-green-50 border border-green-200 p-3">
@@ -417,19 +455,18 @@ export default function ReperfusionPage() {
                       <span className="text-sm font-semibold text-gray-900">Physiology/imaging guidance for non-culprit lesions</span>
                       <div className="flex gap-1"><CORBadge level="2a" /><LOEBadge level="B-R" /></div>
                     </div>
-                    <p className="text-xs text-gray-600">FFR, iwFR, or IVUS/OCT to guide non-culprit PCI decision. Angiographic-only assessment is reasonable if physiology unavailable.</p>
+                    <p className="text-xs text-gray-600">FFR, iwFR, or IVUS/OCT to guide non-culprit PCI decision.</p>
                   </div>
                   <div className="rounded-md border p-3">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-semibold text-gray-900">CABG for complex MVD</span>
                       <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="B-NR" /></div>
                     </div>
-                    <p className="text-xs text-gray-600">Heart Team discussion for left main, complex 3-vessel disease, or high SYNTAX score (&gt;33). CABG may be preferred over multivessel PCI.</p>
+                    <p className="text-xs text-gray-600">Heart Team discussion for left main, complex 3-vessel disease, or high SYNTAX score (&gt;33).</p>
                   </div>
                 </>
               )}
 
-              {/* NSTEMI/UA */}
               {(acsType === 'nstemi' || acsType === 'ua') && (
                 <>
                   <div className="rounded-md bg-blue-50 border border-blue-200 p-3">
@@ -444,36 +481,32 @@ export default function ReperfusionPage() {
                       <span className="text-sm font-semibold text-gray-900">Complete revascularization in NSTE-ACS</span>
                       <div className="flex gap-1"><CORBadge level="2a" /><LOEBadge level="B-R" /></div>
                     </div>
-                    <p className="text-xs text-gray-600">Reasonable to treat non-culprit lesions (staged or same-sitting) based on physiology/imaging guidance (FFR/iwFR).</p>
+                    <p className="text-xs text-gray-600">Reasonable to treat non-culprit lesions based on physiology/imaging guidance (FFR/iwFR).</p>
                   </div>
                   <div className="rounded-md border p-3">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-semibold text-gray-900">Heart Team for complex MVD</span>
                       <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="C-EO" /></div>
                     </div>
-                    <p className="text-xs text-gray-600">
-                      Left main disease, 3-vessel disease, DM + MVD, or high SYNTAX: discuss CABG vs PCI.
-                      Use SYNTAX II or EuroSCORE II to guide decision.
-                    </p>
+                    <p className="text-xs text-gray-600">Left main, 3-vessel disease, DM + MVD, or high SYNTAX: discuss CABG vs PCI.</p>
                   </div>
                   <div className="rounded-md border p-3">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-semibold text-gray-900">IVUS/OCT for PCI guidance</span>
                       <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="A" /></div>
                     </div>
-                    <p className="text-xs text-gray-600">Intravascular imaging recommended to optimize stent sizing, apposition, and identify complications (ILUMIEN IV, RENOVATE-COMPLEX-PCI).</p>
+                    <p className="text-xs text-gray-600">Intravascular imaging recommended to optimize stent sizing and apposition (ILUMIEN IV, RENOVATE-COMPLEX-PCI).</p>
                   </div>
                 </>
               )}
 
-              {/* Shock */}
               {shockPresent && (
                 <div className="rounded-md bg-red-50 border border-red-200 p-3">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-semibold text-red-900">NO Routine Multivessel PCI in Shock</span>
                     <div className="flex gap-1"><CORBadge level="3-harm" /><LOEBadge level="A" /></div>
                   </div>
-                  <p className="text-xs text-red-800">Culprit-only PCI (CULPRIT-SHOCK). Multivessel PCI at time of primary PCI associated with higher mortality. Staged non-culprit PCI may be considered after stabilization.</p>
+                  <p className="text-xs text-red-800">Culprit-only PCI (CULPRIT-SHOCK). Staged non-culprit PCI may be considered after stabilization.</p>
                 </div>
               )}
             </div>
@@ -481,28 +514,24 @@ export default function ReperfusionPage() {
         </section>
       )}
 
-      {/* Mechanical Complications */}
+      {/* ========== SECTION 7: Mechanical Complications ========== */}
       {acsType && (
         <section className="rounded-lg border border-red-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold text-gray-900 mb-2">Mechanical Complications of MI</h2>
           <p className="text-xs text-gray-500 mb-4">Typically occur 1-7 days post-MI. High mortality without surgical intervention.</p>
 
           <div className="space-y-3">
-            {/* Free Wall Rupture */}
             <div className="rounded-md border border-red-200 p-3">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-semibold text-red-900 flex items-center gap-1">
-                  <AlertTriangle className="h-3.5 w-3.5" /> Left Ventricular Free Wall Rupture
-                </span>
-              </div>
+              <span className="text-sm font-semibold text-red-900 flex items-center gap-1">
+                <AlertTriangle className="h-3.5 w-3.5" /> Left Ventricular Free Wall Rupture
+              </span>
               <p className="text-xs text-gray-700 mt-1">
-                <strong>Presentation:</strong> Sudden hemodynamic collapse, PEA/cardiac tamponade, usually 1-5 days post-MI (more common with delayed/no reperfusion)<br />
-                <strong>Diagnosis:</strong> Emergent echo showing pericardial effusion with tamponade<br />
-                <strong>Management:</strong> Immediate pericardiocentesis for stabilization, then emergent surgical repair (Class I). MCS as bridge if needed. Mortality &gt;90% without surgery.
+                <strong>Presentation:</strong> Sudden hemodynamic collapse, PEA/cardiac tamponade, 1-5 days post-MI<br />
+                <strong>Diagnosis:</strong> Emergent echo -- pericardial effusion with tamponade<br />
+                <strong>Management:</strong> Pericardiocentesis for stabilization, then emergent surgical repair (Class I). Mortality &gt;90% without surgery.
               </p>
             </div>
 
-            {/* VSD */}
             <div className="rounded-md border border-red-200 p-3">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-sm font-semibold text-red-900 flex items-center gap-1">
@@ -511,13 +540,12 @@ export default function ReperfusionPage() {
                 <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="B-NR" /></div>
               </div>
               <p className="text-xs text-gray-700 mt-1">
-                <strong>Presentation:</strong> New harsh holosystolic murmur + thrill, acute hemodynamic deterioration, 1-7 days post-MI<br />
-                <strong>Diagnosis:</strong> Echo with color Doppler showing VSD; PA catheter step-up in O2 saturation at RV level<br />
-                <strong>Management:</strong> Emergent surgical repair is recommended. Impella/IABP for hemodynamic support as bridge to surgery. Percutaneous closure may be considered in select cases. Delay of surgery (if stable) to allow tissue maturation is debated but may reduce surgical mortality.
+                <strong>Presentation:</strong> New harsh holosystolic murmur + thrill, 1-7 days post-MI<br />
+                <strong>Diagnosis:</strong> Echo with color Doppler; PA catheter O2 step-up at RV<br />
+                <strong>Management:</strong> Emergent surgical repair. MCS (Impella/IABP) as bridge.
               </p>
             </div>
 
-            {/* Papillary Muscle Rupture */}
             <div className="rounded-md border border-red-200 p-3">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-sm font-semibold text-red-900 flex items-center gap-1">
@@ -526,44 +554,37 @@ export default function ReperfusionPage() {
                 <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="B-NR" /></div>
               </div>
               <p className="text-xs text-gray-700 mt-1">
-                <strong>Presentation:</strong> New severe MR murmur, flash pulmonary edema, cardiogenic shock. Usually posteromedial papillary muscle (single blood supply from PDA), 2-7 days post-MI<br />
-                <strong>Diagnosis:</strong> Echo showing flail MV leaflet with severe eccentric MR; may have no audible murmur if LA pressure very high<br />
-                <strong>Management:</strong> Emergent surgical MV repair/replacement (Class I). IABP or Impella for afterload reduction and hemodynamic support as bridge to OR. Vasodilators (nitroprusside) if tolerated. Surgical mortality 20-40%.
+                <strong>Presentation:</strong> Severe MR, flash pulmonary edema, cardiogenic shock, 2-7 days post-MI<br />
+                <strong>Management:</strong> Emergent MV repair/replacement (Class I). IABP/Impella as bridge. Surgical mortality 20-40%.
               </p>
             </div>
 
-            {/* RV Infarction */}
             <div className="rounded-md border p-3">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-sm font-semibold text-gray-900">Right Ventricular Infarction</span>
                 <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="B-NR" /></div>
               </div>
               <p className="text-xs text-gray-700 mt-1">
-                <strong>Presentation:</strong> Hypotension, elevated JVP, clear lungs (classic triad) with inferior STEMI. Right-sided ECG leads (V4R) ST-elevation &ge;1mm<br />
-                <strong>Management:</strong> Volume loading (500 mL-1L NS bolus), avoid nitrates/diuretics/morphine (preload-dependent). Reperfusion of RCA is critical. Inotropes (dobutamine) if volume-unresponsive. Avoid IABP (RV dependent on coronary perfusion pressure).
+                <strong>Presentation:</strong> Hypotension, elevated JVP, clear lungs with inferior STEMI. V4R ST-elevation<br />
+                <strong>Management:</strong> Volume loading, avoid nitrates/diuretics. Reperfuse RCA. Inotropes if volume-unresponsive.
               </p>
             </div>
 
-            {/* LV Aneurysm */}
             <div className="rounded-md border p-3">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-sm font-semibold text-gray-900">LV Aneurysm / LV Thrombus</span>
                 <div className="flex gap-1"><CORBadge level="2a" /><LOEBadge level="C-LD" /></div>
               </div>
               <p className="text-xs text-gray-700 mt-1">
-                <strong>LV Aneurysm:</strong> Persistent ST elevation &gt;2 weeks, dyskinetic segment. Increased risk of thrombus, arrhythmia, HF.<br />
-                <strong>LV Thrombus:</strong> Screen with echo (especially anterior/apical MI, LVEF &le;40%). Anticoagulation (warfarin or DOAC) for 3-6 months if thrombus present. Repeat imaging to confirm resolution before stopping.
+                Screen with echo (anterior/apical MI, LVEF &le;40%). Anticoagulate 3-6 months if thrombus found. Repeat imaging before stopping.
               </p>
             </div>
 
-            {/* Pericarditis */}
             <div className="rounded-md border p-3">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-semibold text-gray-900">Post-MI Pericarditis / Dressler Syndrome</span>
-              </div>
+              <span className="text-sm font-semibold text-gray-900">Post-MI Pericarditis / Dressler Syndrome</span>
               <p className="text-xs text-gray-700 mt-1">
-                <strong>Early pericarditis (1-3 days):</strong> Pleuritic chest pain, friction rub, diffuse ST elevation. Treat with aspirin 650 mg q6-8h + colchicine 0.5 mg BID. Avoid NSAIDs (Class III Harm in ACS).<br />
-                <strong>Dressler syndrome (2-10 weeks):</strong> Autoimmune pericarditis. Treat with aspirin + colchicine. Corticosteroids only if refractory.
+                <strong>Early (1-3 days):</strong> Aspirin 650 mg q6-8h + colchicine 0.5 mg BID. Avoid NSAIDs.<br />
+                <strong>Dressler (2-10 weeks):</strong> Aspirin + colchicine. Corticosteroids only if refractory.
               </p>
             </div>
           </div>
@@ -587,5 +608,92 @@ export default function ReperfusionPage() {
         placeholder="Select ACS type and complete reperfusion pathway to generate a summary."
       />
     </div>
+  );
+}
+
+/* ========== Fibrinolytic Contraindication Checklist Component ========== */
+function FibrinolyticContraindications() {
+  const [absoluteChecked, setAbsoluteChecked] = useState<boolean[]>(new Array(ABSOLUTE_CONTRAINDICATIONS.length).fill(false));
+  const [relativeChecked, setRelativeChecked] = useState<boolean[]>(new Array(RELATIVE_CONTRAINDICATIONS.length).fill(false));
+  const [expanded, setExpanded] = useState(true);
+
+  const absoluteCount = absoluteChecked.filter(Boolean).length;
+  const relativeCount = relativeChecked.filter(Boolean).length;
+  const hasAbsolute = absoluteCount > 0;
+
+  const toggleAbsolute = (i: number) => {
+    const next = [...absoluteChecked];
+    next[i] = !next[i];
+    setAbsoluteChecked(next);
+  };
+
+  const toggleRelative = (i: number) => {
+    const next = [...relativeChecked];
+    next[i] = !next[i];
+    setRelativeChecked(next);
+  };
+
+  return (
+    <section className={cn(
+      'rounded-lg border p-5 shadow-sm',
+      hasAbsolute ? 'border-red-300 bg-red-50' : 'border-amber-200 bg-white'
+    )}>
+      <button onClick={() => setExpanded(!expanded)} className="flex items-center justify-between w-full text-left">
+        <div className="flex items-center gap-2">
+          <AlertTriangle className={cn('h-5 w-5', hasAbsolute ? 'text-red-600' : 'text-amber-500')} />
+          <h2 className="text-lg font-semibold text-gray-900">Fibrinolytic Contraindication Checklist</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          {hasAbsolute && (
+            <span className="rounded-full bg-red-600 text-white text-xs px-2 py-0.5 font-bold">
+              ABSOLUTE: {absoluteCount}
+            </span>
+          )}
+          {relativeCount > 0 && (
+            <span className="rounded-full bg-amber-500 text-white text-xs px-2 py-0.5 font-bold">
+              RELATIVE: {relativeCount}
+            </span>
+          )}
+          {expanded ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
+        </div>
+      </button>
+
+      {hasAbsolute && (
+        <div className="mt-3 rounded-md bg-red-100 border border-red-300 p-3">
+          <p className="text-sm font-bold text-red-800">
+            ABSOLUTE CONTRAINDICATION PRESENT -- Fibrinolysis is CONTRAINDICATED. Consider transfer for primary PCI.
+          </p>
+        </div>
+      )}
+
+      {expanded && (
+        <div className="mt-4 space-y-4">
+          <div>
+            <h3 className="text-sm font-bold text-red-800 mb-2">Absolute Contraindications (any = DO NOT give fibrinolytics)</h3>
+            <div className="space-y-1.5">
+              {ABSOLUTE_CONTRAINDICATIONS.map((item, i) => (
+                <label key={i} className="flex items-center gap-2 py-1 px-2 rounded hover:bg-red-50 cursor-pointer">
+                  <input type="checkbox" checked={absoluteChecked[i]} onChange={() => toggleAbsolute(i)}
+                    className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500" />
+                  <span className={cn('text-sm', absoluteChecked[i] ? 'text-red-800 font-medium' : 'text-gray-700')}>{item}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-amber-800 mb-2">Relative Contraindications (weigh risk vs benefit)</h3>
+            <div className="space-y-1.5">
+              {RELATIVE_CONTRAINDICATIONS.map((item, i) => (
+                <label key={i} className="flex items-center gap-2 py-1 px-2 rounded hover:bg-amber-50 cursor-pointer">
+                  <input type="checkbox" checked={relativeChecked[i]} onChange={() => toggleRelative(i)}
+                    className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500" />
+                  <span className={cn('text-sm', relativeChecked[i] ? 'text-amber-800 font-medium' : 'text-gray-700')}>{item}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }

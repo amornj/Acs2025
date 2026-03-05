@@ -276,86 +276,207 @@ export default function MedicationsPage() {
         )}
       </section>
 
-      {/* Lipid Therapy */}
+      {/* Lipid-Lowering Therapy */}
       <section className="rounded-lg border bg-white p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Lipid-Lowering Therapy</h2>
 
-        <label className="flex items-center gap-2 mb-3 cursor-pointer">
-          <input type="checkbox" checked={lipid.highIntensityStatin} onChange={(e) => updateLipid({ highIntensityStatin: e.target.checked })}
-            className="h-4 w-4 rounded border-gray-300 text-blue-600" />
-          <span className="text-sm text-gray-700">High-intensity statin initiated</span>
-          <CORBadge level="1" /><LOEBadge level="A" />
-        </label>
-
-        {lipid.highIntensityStatin && (
-          <div className="ml-6 mb-4">
-            <select value={lipid.statinAgent} onChange={(e) => updateLipid({ statinAgent: e.target.value })}
-              className="rounded-md border border-gray-300 px-3 py-2 text-sm">
-              <option value="">Select statin...</option>
-              <option value="Atorvastatin 80 mg">Atorvastatin 80 mg</option>
-              <option value="Atorvastatin 40 mg">Atorvastatin 40 mg</option>
-              <option value="Rosuvastatin 40 mg">Rosuvastatin 40 mg</option>
-              <option value="Rosuvastatin 20 mg">Rosuvastatin 20 mg</option>
-            </select>
+        {/* Patient statin status selection */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Patient statin status</label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {([
+              ['naive', 'Not on statin', 'Start high-intensity statin'],
+              ['max-tolerated', 'On maximally tolerated statin', 'Assess LDL-C, add nonstatin if needed'],
+              ['intolerant', 'Statin intolerant', 'Nonstatin-based regimen'],
+            ] as const).map(([key, label, desc]) => (
+              <button key={key} onClick={() => updateLipid({ statinStatus: key })}
+                className={cn('rounded-lg border-2 p-3 text-left transition-all',
+                  lipid.statinStatus === key ? 'bg-blue-50 border-blue-400' : 'bg-white border-gray-200 hover:border-gray-400')}>
+                <span className="text-sm font-semibold text-gray-900 block">{label}</span>
+                <span className="text-xs text-gray-500">{desc}</span>
+              </button>
+            ))}
           </div>
-        )}
+        </div>
 
+        {/* Baseline LDL-C (common to all) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Baseline LDL-C (mg/dL)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Baseline / Current LDL-C (mg/dL)</label>
             <input type="number" value={lipid.ldlcBaseline ?? ''} onChange={(e) => updateLipid({ ldlcBaseline: e.target.value ? Number(e.target.value) : null })}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="LDL-C" />
           </div>
         </div>
 
-        {lipid.ldlcBaseline != null && lipid.ldlcBaseline >= 55 && (
-          <div className="space-y-2 mb-4">
-            <div className={cn('rounded-md border p-3', lipid.ldlcBaseline >= 70 ? 'bg-amber-50 border-amber-200' : 'bg-yellow-50 border-yellow-200')}>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm font-semibold">{lipid.ldlcBaseline >= 70 ? 'LDL-C >=70: Add nonstatin therapy' : 'LDL-C 55-69: Consider nonstatin therapy'}</span>
-                <CORBadge level={lipid.ldlcBaseline >= 70 ? '1' : '2a'} />
+        {/* ---- PATH A: Statin-naive ---- */}
+        {lipid.statinStatus === 'naive' && (
+          <div className="space-y-3 border-l-4 border-blue-400 pl-4">
+            <h3 className="text-sm font-bold text-blue-900">Not on Statin -- Initiate High-Intensity Statin</h3>
+            <div className="rounded-md bg-blue-50 border border-blue-200 p-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-semibold text-blue-900">High-intensity statin for ALL ACS patients</span>
+                <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="A" /></div>
               </div>
+              <p className="text-xs text-blue-700">Start before or at discharge, regardless of baseline LDL-C</p>
             </div>
+            <div>
+              <label className="flex items-center gap-2 mb-2 cursor-pointer">
+                <input type="checkbox" checked={lipid.highIntensityStatin} onChange={(e) => updateLipid({ highIntensityStatin: e.target.checked })}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600" />
+                <span className="text-sm text-gray-700">High-intensity statin initiated</span>
+              </label>
+              {lipid.highIntensityStatin && (
+                <select value={lipid.statinAgent} onChange={(e) => updateLipid({ statinAgent: e.target.value })}
+                  className="ml-6 rounded-md border border-gray-300 px-3 py-2 text-sm">
+                  <option value="">Select statin...</option>
+                  <option value="Atorvastatin 80 mg">Atorvastatin 80 mg</option>
+                  <option value="Atorvastatin 40 mg">Atorvastatin 40 mg</option>
+                  <option value="Rosuvastatin 40 mg">Rosuvastatin 40 mg</option>
+                  <option value="Rosuvastatin 20 mg">Rosuvastatin 20 mg</option>
+                </select>
+              )}
+            </div>
+            <div className="rounded-md bg-gray-50 border p-3">
+              <p className="text-xs text-gray-600">
+                <strong>Follow-up:</strong> Recheck fasting LDL-C at 4-8 weeks.<br />
+                If LDL-C &ge;55 mg/dL: add <strong>ezetimibe</strong> (Class I, LOE A -- IMPROVE-IT)<br />
+                If still &ge;55 on statin + ezetimibe: add <strong>PCSK9i</strong> (Class I, LOE A -- FOURIER/ODYSSEY)
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ---- PATH B: Maximally tolerated statin ---- */}
+        {lipid.statinStatus === 'max-tolerated' && (
+          <div className="space-y-3 border-l-4 border-amber-400 pl-4">
+            <h3 className="text-sm font-bold text-amber-900">Already on Maximally Tolerated Statin</h3>
+            <div className="rounded-md bg-amber-50 border border-amber-200 p-3">
+              <p className="text-xs text-amber-800">Confirm patient is on truly maximal tolerated dose. If not at high-intensity, attempt uptitration first.</p>
+            </div>
+
+            {lipid.ldlcBaseline != null && lipid.ldlcBaseline >= 55 && (
+              <div className="space-y-2">
+                <div className="rounded-md bg-amber-50 border border-amber-200 p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-semibold text-amber-900">LDL-C &ge;55: Add nonstatin therapy</span>
+                    <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="A" /></div>
+                  </div>
+                </div>
+                <div className="rounded-md border p-3">
+                  <p className="text-xs text-gray-700">
+                    <strong>Step 1:</strong> Add <strong>ezetimibe 10 mg</strong> (Class I, LOE A -- IMPROVE-IT)<br />
+                    <strong>Step 2:</strong> If LDL-C still &ge;55: add <strong>PCSK9i</strong> (evolocumab or alirocumab) (Class I, LOE A)<br />
+                    <strong>Step 3:</strong> If LDL-C still &ge;70 despite statin + ezetimibe + PCSK9i: consider <strong>inclisiran</strong> (Class 2a) or <strong>bempedoic acid</strong> (Class 2b)
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {lipid.ldlcBaseline != null && lipid.ldlcBaseline < 55 && (
+              <div className="rounded-md bg-green-50 border border-green-200 p-3">
+                <p className="text-sm text-green-800">LDL-C &lt;55 mg/dL -- at goal. Continue current regimen.</p>
+              </div>
+            )}
 
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={lipid.addNonstatin} onChange={(e) => updateLipid({ addNonstatin: e.target.checked })}
                 className="h-4 w-4 rounded border-gray-300 text-blue-600" />
-              <span className="text-sm text-gray-700">Add nonstatin agent</span>
+              <span className="text-sm text-gray-700">Nonstatin agent added</span>
             </label>
-
             {lipid.addNonstatin && (
               <select value={lipid.nonstatinAgent} onChange={(e) => updateLipid({ nonstatinAgent: e.target.value })}
                 className="ml-6 rounded-md border border-gray-300 px-3 py-2 text-sm">
                 <option value="">Select nonstatin...</option>
                 {NONSTATIN_OPTIONS.map((n) => (
-                  <option key={n.agent} value={n.agent}>{n.agent} (LDL reduction: {n.ldlReduction}, {n.trial})</option>
+                  <option key={n.agent} value={n.agent}>{n.agent} ({n.ldlReduction} reduction, {n.trial})</option>
                 ))}
               </select>
             )}
           </div>
         )}
 
-        {/* Nonstatin table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="border px-3 py-2 text-left font-medium text-gray-700">Agent</th>
-                <th className="border px-3 py-2 text-left font-medium text-gray-700">LDL Reduction</th>
-                <th className="border px-3 py-2 text-left font-medium text-gray-700">ACS Trial</th>
-              </tr>
-            </thead>
-            <tbody>
-              {NONSTATIN_OPTIONS.map((n) => (
-                <tr key={n.agent} className={cn(lipid.nonstatinAgent === n.agent && 'bg-blue-50')}>
-                  <td className="border px-3 py-2 font-medium">{n.agent}</td>
-                  <td className="border px-3 py-2">{n.ldlReduction}</td>
-                  <td className="border px-3 py-2">{n.trial}</td>
+        {/* ---- PATH C: Statin intolerant ---- */}
+        {lipid.statinStatus === 'intolerant' && (
+          <div className="space-y-3 border-l-4 border-red-400 pl-4">
+            <h3 className="text-sm font-bold text-red-900">Statin Intolerant</h3>
+            <div className="rounded-md bg-red-50 border border-red-200 p-3">
+              <p className="text-xs text-red-800">
+                <strong>Confirm true intolerance:</strong> Rechallenge with a different statin (e.g., rosuvastatin if atorvastatin intolerant), lower dose, or intermittent dosing (e.g., rosuvastatin 5-10 mg every other day). True statin intolerance is uncommon (&lt;5%).
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <div className="rounded-md border p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-semibold text-gray-900">Ezetimibe 10 mg daily</span>
+                  <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="A" /></div>
+                </div>
+                <p className="text-xs text-gray-600">First-line nonstatin. Well tolerated, ~18-25% LDL-C reduction.</p>
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-semibold text-gray-900">PCSK9 inhibitor (evolocumab/alirocumab)</span>
+                  <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="A" /></div>
+                </div>
+                <p className="text-xs text-gray-600">50-60% LDL-C reduction. Works independently of statin. SC injection q2w or monthly.</p>
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-semibold text-gray-900">Inclisiran</span>
+                  <div className="flex gap-1"><CORBadge level="2a" /><LOEBadge level="B-R" /></div>
+                </div>
+                <p className="text-xs text-gray-600">siRNA targeting PCSK9 mRNA. ~50% LDL reduction. SC q6 months after initial doses.</p>
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-semibold text-gray-900">Bempedoic acid 180 mg daily</span>
+                  <div className="flex gap-1"><CORBadge level="2a" /><LOEBadge level="B-R" /></div>
+                </div>
+                <p className="text-xs text-gray-600">ACL inhibitor. 15-25% LDL reduction. CLEAR Outcomes trial showed 13% MACE reduction in statin-intolerant patients. Does NOT cause myalgia (acts upstream of muscle).</p>
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={lipid.addNonstatin} onChange={(e) => updateLipid({ addNonstatin: e.target.checked })}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600" />
+              <span className="text-sm text-gray-700">Nonstatin agent selected</span>
+            </label>
+            {lipid.addNonstatin && (
+              <select value={lipid.nonstatinAgent} onChange={(e) => updateLipid({ nonstatinAgent: e.target.value })}
+                className="ml-6 rounded-md border border-gray-300 px-3 py-2 text-sm">
+                <option value="">Select agent...</option>
+                {NONSTATIN_OPTIONS.map((n) => (
+                  <option key={n.agent} value={n.agent}>{n.agent} ({n.ldlReduction} reduction, {n.trial})</option>
+                ))}
+              </select>
+            )}
+          </div>
+        )}
+
+        {/* Nonstatin reference table (always visible) */}
+        {lipid.statinStatus && (
+          <div className="overflow-x-auto mt-4">
+            <p className="text-xs font-medium text-gray-500 mb-2">Nonstatin Reference</p>
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="border px-3 py-2 text-left font-medium text-gray-700">Agent</th>
+                  <th className="border px-3 py-2 text-left font-medium text-gray-700">LDL Reduction</th>
+                  <th className="border px-3 py-2 text-left font-medium text-gray-700">ACS Trial</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {NONSTATIN_OPTIONS.map((n) => (
+                  <tr key={n.agent} className={cn(lipid.nonstatinAgent === n.agent && 'bg-blue-50')}>
+                    <td className="border px-3 py-2 font-medium">{n.agent}</td>
+                    <td className="border px-3 py-2">{n.ldlReduction}</td>
+                    <td className="border px-3 py-2">{n.trial}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       {/* Other Medications */}
