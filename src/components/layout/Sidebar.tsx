@@ -14,6 +14,7 @@ import {
   Menu,
   X,
   CheckCircle2,
+  RotateCcw,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useACSStore } from '@/store/acsStore';
@@ -31,7 +32,9 @@ const NAV_ITEMS = [
 export function Sidebar() {
   const pathname = usePathname();
   const completedPages = useACSStore((s) => s.completedPages);
+  const resetAll = useACSStore((s) => s.resetAll);
   const [open, setOpen] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   return (
     <>
@@ -90,7 +93,38 @@ export function Sidebar() {
           })}
         </nav>
 
-        <div className="border-t border-white/10 px-4 py-3">
+        <div className="border-t border-white/10 px-4 py-3 space-y-3">
+          {!showConfirm ? (
+            <button
+              onClick={() => setShowConfirm(true)}
+              className="flex items-center gap-2 w-full text-xs text-red-300 hover:text-red-200 transition-colors py-1"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Reset All Data
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs text-red-300">Clear all data across all pages?</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    resetAll();
+                    setShowConfirm(false);
+                    setOpen(false);
+                  }}
+                  className="flex-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded px-2 py-1.5 transition-colors"
+                >
+                  Yes, reset
+                </button>
+                <button
+                  onClick={() => setShowConfirm(false)}
+                  className="flex-1 text-xs bg-white/10 hover:bg-white/20 text-white rounded px-2 py-1.5 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
           <p className="text-[10px] text-blue-300 leading-tight">
             Based on 2025 ACC/AHA/ACEP/NAEMSP/SCAI Guideline for ACS
             (Circulation 2025;151:e771-e862)
