@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo } from 'react';
 import { BarChart3 } from 'lucide-react';
-import { useACSStore, type KillipClass, type SCAIStage, type RiskCategory } from '@/store/acsStore';
+import { useACSStore, type KillipClass, type SCAIStage, type RiskCategory, type TIMISTEMIScore } from '@/store/acsStore';
 import { SummaryBox } from '@/components/ui/SummaryBox';
 import { cn } from '@/lib/utils';
 
@@ -22,8 +22,9 @@ const SCAI_DESCRIPTIONS: Record<string, string> = {
 };
 
 export default function RiskPage() {
-  const { risk, updateRisk, markPageCompleted } = useACSStore();
-  const { timi, grace, killip, scai, biomarkers, riskCategory } = risk;
+  const { evaluation, risk, updateRisk, markPageCompleted } = useACSStore();
+  const acsType = evaluation.acsType;
+  const { timi, timiStemi, grace, killip, scai, biomarkers, riskCategory } = risk;
 
   // TIMI Score handlers
   const toggleTIMI = useCallback((key: keyof typeof timi) => {
@@ -35,6 +36,27 @@ export default function RiskPage() {
     ].filter(Boolean).length;
     updateRisk({ timi: newTimi });
   }, [timi, updateRisk]);
+
+  // TIMI STEMI Score handlers
+  const toggleTIMISTEMI = useCallback((key: keyof Omit<TIMISTEMIScore, 'total'>) => {
+    const newScore = { ...timiStemi, [key]: !timiStemi[key] };
+    // age65to74 and age75plus are mutually exclusive
+    if (key === 'age65to74' && newScore.age65to74) newScore.age75plus = false;
+    if (key === 'age75plus' && newScore.age75plus) newScore.age65to74 = false;
+    // Calculate total
+    let total = 0;
+    if (newScore.age65to74) total += 2;
+    if (newScore.age75plus) total += 3;
+    if (newScore.dmHtnAngina) total += 1;
+    if (newScore.sbpBelow100) total += 3;
+    if (newScore.hrAbove100) total += 2;
+    if (newScore.killip2to4) total += 2;
+    if (newScore.weightBelow67) total += 1;
+    if (newScore.anteriorOrLBBB) total += 1;
+    if (newScore.timeToTx4h) total += 1;
+    newScore.total = total;
+    updateRisk({ timiStemi: newScore });
+  }, [timiStemi, updateRisk]);
 
   // GRACE Score handlers
   const updateGRACEInput = useCallback((key: string, value: number | boolean | null) => {
@@ -62,21 +84,39 @@ export default function RiskPage() {
   const derivedRiskCategory = useMemo((): RiskCategory => {
     if (scai && ['C', 'D', 'E'].includes(scai)) return 'very-high';
     if (killip === 4) return 'very-high';
-    if (timi.total >= 5 || grace.total > 140) return 'high';
-    if (timi.total >= 3 || grace.total > 108) return 'intermediate';
-    if (timi.total <= 2 && grace.total <= 108) return 'low';
+    if (acsType === 'stemi') {
+      // TIMI STEMI scoring
+      if (timiStemi.total >= 8 || grace.total > 140) return 'very-high';
+      if (timiStemi.total >= 5 || grace.total > 140) return 'high';
+      if (timiStemi.total >= 3 || grace.total > 108) return 'intermediate';
+      if (timiStemi.total <= 2 && grace.total <= 108) return 'low';
+    } else {
+      if (timi.total >= 5 || grace.total > 140) return 'high';
+      if (timi.total >= 3 || grace.total > 108) return 'intermediate';
+      if (timi.total <= 2 && grace.total <= 108) return 'low';
+    }
     return null;
-  }, [timi.total, grace.total, killip, scai]);
+  }, [acsType, timi.total, timiStemi.total, grace.total, killip, scai]);
 
   const setRiskCategory = useCallback((cat: RiskCategory) => {
     updateRisk({ riskCategory: cat });
     if (cat) markPageCompleted('risk');
   }, [updateRisk, markPageCompleted]);
 
+  // TIMI STEMI mortality lookup
+  const timiStemiMortality = useMemo(() => {
+    const table: Record<number, string> = { 0: '0.8%', 1: '1.6%', 2: '2.2%', 3: '4.4%', 4: '7.3%', 5: '12.4%', 6: '16.1%', 7: '23.4%', 8: '26.8%' };
+    if (timiStemi.total > 8) return '35.9%';
+    return table[timiStemi.total] || '>35%';
+  }, [timiStemi.total]);
+
   // Summary
   const summaryItems = useMemo(() => {
     const lines: string[] = [];
-    if (timi.total > 0) {
+    if (acsType === 'stemi' && timiStemi.total > 0) {
+      lines.push(`TIMI STEMI Score: ${timiStemi.total}/14 (30-day mortality: ${timiStemiMortality}).`);
+    }
+    if (acsType !== 'stemi' && timi.total > 0) {
       const timiRisk = timi.total <= 2 ? 'Low' : timi.total <= 4 ? 'Intermediate' : 'High';
       lines.push(`TIMI Risk Score: ${timi.total}/7 (${timiRisk} risk).`);
     }
@@ -94,7 +134,7 @@ export default function RiskPage() {
       lines.push(`Overall Risk Category: ${catLabels[cat]}. Proceed to Reperfusion Strategy.`);
     }
     return lines;
-  }, [timi, grace, killip, scai, biomarkers, riskCategory, derivedRiskCategory]);
+  }, [acsType, timi, timiStemi, timiStemiMortality, grace, killip, scai, biomarkers, riskCategory, derivedRiskCategory]);
 
   return (
     <div className="space-y-6">
@@ -108,45 +148,95 @@ export default function RiskPage() {
         </div>
       </div>
 
-      {/* TIMI Risk Score */}
-      <section className="rounded-lg border bg-white p-5 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">TIMI Risk Score for UA/NSTEMI</h2>
-          <span className={cn(
-            'rounded-full px-3 py-1 text-sm font-bold',
-            timi.total <= 2 ? 'bg-green-100 text-green-800' :
-            timi.total <= 4 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'
-          )}>
-            Score: {timi.total}/7
-          </span>
-        </div>
-        <div className="space-y-2">
-          {([
-            ['age65', 'Age >= 65 years'],
-            ['cadRiskFactors3', '>= 3 CAD risk factors (HTN, DM, dyslipidemia, smoking, family history)'],
-            ['knownCAD', 'Known CAD (stenosis >= 50%)'],
-            ['aspirinUse7d', 'Aspirin use in past 7 days'],
-            ['severeAngina24h', '>= 2 angina events in past 24 hours'],
-            ['stDeviation', 'ST deviation >= 0.5mm on ECG'],
-            ['elevatedMarkers', 'Elevated cardiac markers'],
-          ] as const).map(([key, label]) => (
-            <label key={key} className="flex items-center gap-3 py-1.5 px-2 rounded hover:bg-gray-50 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={timi[key] as boolean}
-                onChange={() => toggleTIMI(key)}
-                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span className="text-sm text-gray-700">{label}</span>
-            </label>
-          ))}
-        </div>
-        <div className="mt-3 rounded-md bg-gray-50 p-3">
-          <p className="text-xs text-gray-600">
-            <strong>Interpretation:</strong> 0-2: Low risk (5-8% event rate) | 3-4: Intermediate risk (13-20%) | 5-7: High risk (26-41%)
-          </p>
-        </div>
-      </section>
+      {/* TIMI Risk Score - STEMI */}
+      {acsType === 'stemi' && (
+        <section className="rounded-lg border bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">TIMI Risk Score for STEMI</h2>
+            <span className={cn(
+              'rounded-full px-3 py-1 text-sm font-bold',
+              timiStemi.total <= 2 ? 'bg-green-100 text-green-800' :
+              timiStemi.total <= 4 ? 'bg-amber-100 text-amber-800' :
+              timiStemi.total <= 7 ? 'bg-orange-100 text-orange-800' : 'bg-red-100 text-red-800'
+            )}>
+              Score: {timiStemi.total}/14
+            </span>
+          </div>
+          <div className="space-y-2">
+            {([
+              ['age65to74', 'Age 65-74 years (+2)'],
+              ['age75plus', 'Age >= 75 years (+3)'],
+              ['dmHtnAngina', 'DM, HTN, or angina (+1)'],
+              ['sbpBelow100', 'Systolic BP < 100 mmHg (+3)'],
+              ['hrAbove100', 'Heart rate > 100 bpm (+2)'],
+              ['killip2to4', 'Killip class II-IV (+2)'],
+              ['weightBelow67', 'Weight < 67 kg (+1)'],
+              ['anteriorOrLBBB', 'Anterior STEMI or LBBB (+1)'],
+              ['timeToTx4h', 'Time to treatment > 4 hours (+1)'],
+            ] as const).map(([key, label]) => (
+              <label key={key} className="flex items-center gap-3 py-1.5 px-2 rounded hover:bg-gray-50 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={timiStemi[key] as boolean}
+                  onChange={() => toggleTIMISTEMI(key)}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">{label}</span>
+              </label>
+            ))}
+          </div>
+          <div className="mt-3 rounded-md bg-gray-50 p-3">
+            <p className="text-xs text-gray-600">
+              <strong>30-day mortality:</strong> 0 pts: 0.8% | 1: 1.6% | 2: 2.2% | 3: 4.4% | 4: 7.3% | 5: 12.4% | 6: 16.1% | 7: 23.4% | 8: 26.8% | &gt;8: 35.9%
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              Current: <strong>{timiStemiMortality}</strong> estimated 30-day mortality
+            </p>
+          </div>
+        </section>
+      )}
+
+      {/* TIMI Risk Score - UA/NSTEMI */}
+      {acsType !== 'stemi' && (
+        <section className="rounded-lg border bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">TIMI Risk Score for UA/NSTEMI</h2>
+            <span className={cn(
+              'rounded-full px-3 py-1 text-sm font-bold',
+              timi.total <= 2 ? 'bg-green-100 text-green-800' :
+              timi.total <= 4 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'
+            )}>
+              Score: {timi.total}/7
+            </span>
+          </div>
+          <div className="space-y-2">
+            {([
+              ['age65', 'Age >= 65 years'],
+              ['cadRiskFactors3', '>= 3 CAD risk factors (HTN, DM, dyslipidemia, smoking, family history)'],
+              ['knownCAD', 'Known CAD (stenosis >= 50%)'],
+              ['aspirinUse7d', 'Aspirin use in past 7 days'],
+              ['severeAngina24h', '>= 2 angina events in past 24 hours'],
+              ['stDeviation', 'ST deviation >= 0.5mm on ECG'],
+              ['elevatedMarkers', 'Elevated cardiac markers'],
+            ] as const).map(([key, label]) => (
+              <label key={key} className="flex items-center gap-3 py-1.5 px-2 rounded hover:bg-gray-50 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={timi[key] as boolean}
+                  onChange={() => toggleTIMI(key)}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">{label}</span>
+              </label>
+            ))}
+          </div>
+          <div className="mt-3 rounded-md bg-gray-50 p-3">
+            <p className="text-xs text-gray-600">
+              <strong>Interpretation:</strong> 0-2: Low risk (5-8% event rate) | 3-4: Intermediate risk (13-20%) | 5-7: High risk (26-41%)
+            </p>
+          </div>
+        </section>
+      )}
 
       {/* GRACE Risk Score */}
       <section className="rounded-lg border bg-white p-5 shadow-sm">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo } from 'react';
-import { Pill } from 'lucide-react';
+import { Pill, AlertTriangle } from 'lucide-react';
 import { useACSStore } from '@/store/acsStore';
 import { SummaryBox } from '@/components/ui/SummaryBox';
 import { CORBadge } from '@/components/ui/CORBadge';
@@ -98,6 +98,80 @@ export default function MedicationsPage() {
           <p className="text-sm text-gray-500">Antiplatelet, anticoagulation, lipid, and other therapies</p>
         </div>
       </div>
+
+      {/* Acute Pain & Supportive Care */}
+      <section className="rounded-lg border bg-white p-5 shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Acute Pain & Supportive Care</h2>
+        <div className="space-y-3">
+          {/* Oxygen */}
+          <div className="rounded-md border p-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm font-semibold text-gray-900">Supplemental Oxygen (SpO2 &lt;90%)</span>
+              <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="C-LD" /></div>
+            </div>
+            <p className="text-xs text-gray-600">Administer O2 to maintain SpO2 &ge;90%. Titrate to target.</p>
+          </div>
+          <div className="rounded-md bg-red-50 border border-red-200 p-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm font-semibold text-red-900 flex items-center gap-1">
+                <AlertTriangle className="h-3.5 w-3.5" /> Routine Oxygen (SpO2 &ge;90%)
+              </span>
+              <div className="flex gap-1"><CORBadge level="3-no-benefit" /><LOEBadge level="B-R" /></div>
+            </div>
+            <p className="text-xs text-red-700">Routine O2 in normoxemic patients is NOT beneficial (DETO2X-AMI trial).</p>
+          </div>
+
+          {/* Nitroglycerin */}
+          <div className="rounded-md border p-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm font-semibold text-gray-900">Nitroglycerin</span>
+              <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="C-EO" /></div>
+            </div>
+            <p className="text-xs text-gray-600">
+              SL 0.4 mg q5min x3 for ongoing ischemic pain<br />
+              IV NTG for persistent pain, hypertension, or heart failure<br />
+              <span className="text-red-600 font-medium">
+                Contraindicated: SBP &lt;90, RV infarction, PDE5i within 24h (sildenafil/vardenafil) or 48h (tadalafil)
+              </span>
+            </p>
+          </div>
+
+          {/* Morphine */}
+          <div className="rounded-md border p-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm font-semibold text-gray-900">Morphine</span>
+              <div className="flex gap-1"><CORBadge level="2b" /><LOEBadge level="B-NR" /></div>
+            </div>
+            <p className="text-xs text-gray-600">
+              IV morphine 2-4 mg for refractory pain despite NTG<br />
+              <span className="text-amber-700 font-medium">Caution: Delays P2Y12 inhibitor absorption (gastroparesis effect). Associated with worse outcomes in some observational studies (CRUSADE). Use judiciously.</span>
+            </p>
+          </div>
+
+          {/* Acetaminophen */}
+          <div className="rounded-md border p-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm font-semibold text-gray-900">Acetaminophen</span>
+              <div className="flex gap-1"><CORBadge level="2b" /><LOEBadge level="C-EO" /></div>
+            </div>
+            <p className="text-xs text-gray-600">Consider as first-line for mild chest pain or as adjunct to reduce opioid use</p>
+          </div>
+
+          {/* NSAIDs */}
+          <div className="rounded-md bg-red-50 border border-red-200 p-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm font-semibold text-red-900 flex items-center gap-1">
+                <AlertTriangle className="h-3.5 w-3.5" /> Non-aspirin NSAIDs
+              </span>
+              <div className="flex gap-1"><CORBadge level="3-harm" /><LOEBadge level="B-NR" /></div>
+            </div>
+            <p className="text-xs text-red-700">
+              Discontinue all non-aspirin NSAIDs (ibuprofen, naproxen, celecoxib) at time of ACS diagnosis.<br />
+              Increase MACE risk, interfere with antiplatelet therapy, and promote fluid retention.
+            </p>
+          </div>
+        </div>
+      </section>
 
       {/* Antiplatelet Therapy */}
       <section className="rounded-lg border bg-white p-5 shadow-sm">

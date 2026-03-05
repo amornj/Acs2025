@@ -48,6 +48,19 @@ export interface TIMIScore {
   total: number;
 }
 
+export interface TIMISTEMIScore {
+  age65to74: boolean;    // 2 pts
+  age75plus: boolean;    // 3 pts
+  dmHtnAngina: boolean;  // 1 pt
+  sbpBelow100: boolean;  // 3 pts
+  hrAbove100: boolean;   // 2 pts
+  killip2to4: boolean;   // 2 pts
+  weightBelow67: boolean;// 1 pt
+  anteriorOrLBBB: boolean;// 1 pt
+  timeToTx4h: boolean;   // 1 pt
+  total: number;
+}
+
 export interface GRACEInputs {
   age: number | null;
   heartRate: number | null;
@@ -131,6 +144,7 @@ export interface EvaluationData {
 
 export interface RiskData {
   timi: TIMIScore;
+  timiStemi: TIMISTEMIScore;
   grace: GRACEScore;
   killip: KillipClass;
   scai: SCAIStage;
@@ -229,6 +243,19 @@ const initialTIMI: TIMIScore = {
   total: 0,
 };
 
+const initialTIMISTEMI: TIMISTEMIScore = {
+  age65to74: false,
+  age75plus: false,
+  dmHtnAngina: false,
+  sbpBelow100: false,
+  hrAbove100: false,
+  killip2to4: false,
+  weightBelow67: false,
+  anteriorOrLBBB: false,
+  timeToTx4h: false,
+  total: 0,
+};
+
 const initialGRACE: GRACEScore = {
   inputs: {
     age: null,
@@ -247,6 +274,7 @@ const initialGRACE: GRACEScore = {
 
 const initialRisk: RiskData = {
   timi: initialTIMI,
+  timiStemi: initialTIMISTEMI,
   grace: initialGRACE,
   killip: null,
   scai: null,
