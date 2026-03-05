@@ -479,9 +479,9 @@ export default function MedicationsPage() {
         )}
       </section>
 
-      {/* Other Medications */}
+      {/* Other */}
       <section className="rounded-lg border bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Other Medications</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Other</h2>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <label className="flex items-center gap-2 cursor-pointer">
@@ -563,6 +563,110 @@ export default function MedicationsPage() {
               <span className="text-sm text-gray-700">PPI with DAPT (high GI bleeding risk)</span>
             </label>
             <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="A" /></div>
+          </div>
+        </div>
+      </section>
+
+      {/* Anemia Management & Transfusion */}
+      <section className="rounded-lg border bg-white p-5 shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Anemia Management & Transfusion in ACS</h2>
+
+        <div className="space-y-3">
+          {/* Restrictive transfusion */}
+          <div className="rounded-md bg-blue-50 border border-blue-200 p-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm font-semibold text-blue-900">Restrictive transfusion strategy (Hb &lt;7-8 g/dL)</span>
+              <div className="flex gap-1"><CORBadge level="2a" /><LOEBadge level="B-R" /></div>
+            </div>
+            <p className="text-xs text-blue-700">
+              A restrictive RBC transfusion strategy (transfuse when Hb &lt;7-8 g/dL) is reasonable for hemodynamically stable ACS patients without active bleeding or ongoing ischemia.
+            </p>
+          </div>
+
+          {/* Liberal transfusion avoidance */}
+          <div className="rounded-md bg-red-50 border border-red-200 p-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm font-semibold text-red-900 flex items-center gap-1">
+                <AlertTriangle className="h-3.5 w-3.5" /> Liberal transfusion (Hb &ge;10 g/dL) may be harmful
+              </span>
+              <div className="flex gap-1"><CORBadge level="3-harm" /><LOEBadge level="B-R" /></div>
+            </div>
+            <p className="text-xs text-red-700">
+              Routine transfusion to maintain Hb &ge;10 g/dL is potentially harmful. Associated with increased mortality and recurrent MI in some studies.
+            </p>
+          </div>
+
+          {/* Clinical context thresholds */}
+          <div className="rounded-md border p-3">
+            <span className="text-sm font-semibold text-gray-900">Transfusion Thresholds by Clinical Context</span>
+            <div className="mt-2 overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="border px-2 py-1.5 text-left font-medium">Clinical Scenario</th>
+                    <th className="border px-2 py-1.5 text-left font-medium">Threshold</th>
+                    <th className="border px-2 py-1.5 text-left font-medium">Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="border px-2 py-1.5">Hemodynamically stable, no active bleeding</td>
+                    <td className="border px-2 py-1.5 font-medium">Hb &lt;7-8 g/dL</td>
+                    <td className="border px-2 py-1.5">Restrictive strategy (Class 2a)</td>
+                  </tr>
+                  <tr>
+                    <td className="border px-2 py-1.5">Active bleeding / hemodynamic instability</td>
+                    <td className="border px-2 py-1.5 font-medium">Hb &lt;8-9 g/dL</td>
+                    <td className="border px-2 py-1.5">Higher threshold reasonable; individualize</td>
+                  </tr>
+                  <tr>
+                    <td className="border px-2 py-1.5">Ongoing ischemia despite treatment</td>
+                    <td className="border px-2 py-1.5 font-medium">Hb &lt;8-10 g/dL</td>
+                    <td className="border px-2 py-1.5">Consider transfusion for symptomatic anemia with ischemia</td>
+                  </tr>
+                  <tr className="bg-red-50">
+                    <td className="border px-2 py-1.5">Routine maintenance (Hb &ge;10)</td>
+                    <td className="border px-2 py-1.5 font-medium text-red-800">Avoid</td>
+                    <td className="border px-2 py-1.5 text-red-700">Class III Harm -- may increase mortality</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Key trials */}
+          <div className="rounded-md bg-gray-50 border p-3">
+            <span className="text-sm font-semibold text-gray-900">Supporting Evidence</span>
+            <div className="mt-2 space-y-2">
+              <div>
+                <p className="text-xs text-gray-700">
+                  <strong>REALITY Trial (2021):</strong> Restrictive (Hb &lt;8 g/dL) vs liberal (Hb &lt;10 g/dL) strategy in AMI with anemia (n=668). Restrictive strategy was non-inferior for MACE at 30 days with significantly fewer transfusions. No increase in mortality or ischemic events.
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-700">
+                  <strong>MINT Trial (2023):</strong> Largest RCT of transfusion in MI (n=3,504). Restrictive (Hb &lt;7-8 g/dL) vs liberal (Hb &lt;10 g/dL). Restrictive was non-inferior for death or recurrent MI at 30 days. Restrictive group received ~50% fewer transfusions.
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-700">
+                  <strong>Observational data (Rao et al., Chatterjee et al.):</strong> Multiple meta-analyses of &gt;200,000 ACS patients show transfusion at higher Hb thresholds (&ge;10 g/dL) associated with increased mortality. Nadir Hb &lt;8 g/dL without transfusion also associated with worse outcomes -- supports threshold-based approach.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Anemia workup */}
+          <div className="rounded-md border p-3">
+            <span className="text-sm font-semibold text-gray-900">Anemia Workup in ACS</span>
+            <ul className="text-xs text-gray-700 mt-1 space-y-1 list-disc ml-4">
+              <li>Check hemoglobin on admission and serially (q6-12h if bleeding risk)</li>
+              <li>Identify cause: GI bleeding (most common with DAPT), access site, retroperitoneal, procedural blood loss</li>
+              <li>Iron studies (ferritin, TSAT) -- IV iron if iron-deficient (especially if HFrEF)</li>
+              <li>Consider GI evaluation if unexplained Hb drop or melena/hematochezia</li>
+              <li>Review and optimize antiplatelet/anticoagulant regimen if bleeding</li>
+              <li>PPI for GI protection with DAPT (Class I, LOE A)</li>
+            </ul>
           </div>
         </div>
       </section>
