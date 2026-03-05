@@ -9,6 +9,7 @@ import {
   Heart,
   Pill,
   ClipboardCheck,
+  ImageIcon,
   MessageCircleQuestion,
   BookOpen,
   Menu,
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { href: '/reperfusion',  label: 'Reperfusion Strategy',icon: Heart,                  page: 'reperfusion' },
   { href: '/medications',  label: 'Medications',         icon: Pill,                   page: 'medications' },
   { href: '/discharge',    label: 'Discharge & Follow-up', icon: ClipboardCheck,       page: 'discharge' },
+  { href: '/key-images',   label: 'Key Images',          icon: ImageIcon,              page: 'key-images' },
   { href: '/ask',          label: 'Ask ACS2025',         icon: MessageCircleQuestion,  page: 'ask' },
   { href: '/notebooklm',   label: 'Ask NotebookLM',      icon: BookOpen,               page: 'notebooklm' },
 ];

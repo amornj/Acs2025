@@ -28,7 +28,10 @@ const DISCHARGE_CHECKLIST_ITEMS = [
 
 export default function DischargePage() {
   const { discharge, medications, updateDischarge, markPageCompleted } = useACSStore();
-  const { daptPlan, lipidFollowupWeeks, rehabReferral, rehabType, icdIndicated, influenzaVaccine, dischargeChecklist, arcHbrMajor, arcHbrMinor } = discharge;
+  const { daptPlan, lipidFollowupWeeks, rehabReferral, rehabType, icdIndicated, influenzaVaccine, dischargeChecklist } = discharge;
+  // Safely handle missing arcHbr fields from older persisted state
+  const arcHbrMajor = discharge.arcHbrMajor ?? { oac: false, severeCkd: false, hbBelow11: false, bleedingHosp6mo: false, thrombocytopenia: false, bleedingDiathesis: false, cirrhosis: false, activeMalignancy: false, priorSpontaneousIch: false, priorTraumaticIch12mo: false, brainAvm: false, ischemicStroke6mo: false, nonDeferrableSurgery: false, recentMajorSurgery30d: false };
+  const arcHbrMinor = discharge.arcHbrMinor ?? { age75: false, moderateCkd: false, hb11to13: false, bleedingHosp12mo: false, chronicNsaidSteroid: false, anyIschemicStroke: false };
   const lvef = medications.otherMeds.lvef;
 
   const updateArcMajor = useCallback((u: Partial<ArcHbrMajor>) => {
