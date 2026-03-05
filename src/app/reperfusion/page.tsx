@@ -393,7 +393,7 @@ export default function ReperfusionPage() {
       {/* Multivessel Disease */}
       {acsType && (
         <section className="rounded-lg border bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Multivessel Disease</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Multivessel Coronary Artery Disease</h2>
           <label className="flex items-center gap-2 mb-4 cursor-pointer">
             <input type="checkbox" checked={multivesselDisease} onChange={(e) => update({ multivesselDisease: e.target.checked })}
               className="h-4 w-4 rounded border-gray-300 text-blue-600" />
@@ -402,26 +402,171 @@ export default function ReperfusionPage() {
 
           {multivesselDisease && (
             <div className="space-y-3">
+              {/* STEMI + No Shock */}
               {acsType === 'stemi' && !shockPresent && (
-                <div className="rounded-md bg-green-50 border border-green-200 p-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-semibold text-green-900">Complete Revascularization (COMPLETE Trial)</span>
-                    <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="A" /></div>
+                <>
+                  <div className="rounded-md bg-green-50 border border-green-200 p-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-semibold text-green-900">Complete Revascularization (COMPLETE Trial)</span>
+                      <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="A" /></div>
+                    </div>
+                    <p className="text-xs text-green-800">PCI of non-culprit significant lesions recommended, either same-sitting or staged (before discharge or within 45 days).</p>
                   </div>
-                  <p className="text-xs text-green-800">Same-sitting or staged non-culprit PCI recommended for stable STEMI patients.</p>
-                </div>
+                  <div className="rounded-md border p-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-semibold text-gray-900">Physiology/imaging guidance for non-culprit lesions</span>
+                      <div className="flex gap-1"><CORBadge level="2a" /><LOEBadge level="B-R" /></div>
+                    </div>
+                    <p className="text-xs text-gray-600">FFR, iwFR, or IVUS/OCT to guide non-culprit PCI decision. Angiographic-only assessment is reasonable if physiology unavailable.</p>
+                  </div>
+                  <div className="rounded-md border p-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-semibold text-gray-900">CABG for complex MVD</span>
+                      <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="B-NR" /></div>
+                    </div>
+                    <p className="text-xs text-gray-600">Heart Team discussion for left main, complex 3-vessel disease, or high SYNTAX score (&gt;33). CABG may be preferred over multivessel PCI.</p>
+                  </div>
+                </>
               )}
+
+              {/* NSTEMI/UA */}
+              {(acsType === 'nstemi' || acsType === 'ua') && (
+                <>
+                  <div className="rounded-md bg-blue-50 border border-blue-200 p-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-semibold text-blue-900">Culprit lesion PCI first</span>
+                      <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="A" /></div>
+                    </div>
+                    <p className="text-xs text-blue-700">Identify and treat the culprit lesion. Complete revascularization can be considered same-sitting or staged.</p>
+                  </div>
+                  <div className="rounded-md border p-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-semibold text-gray-900">Complete revascularization in NSTE-ACS</span>
+                      <div className="flex gap-1"><CORBadge level="2a" /><LOEBadge level="B-R" /></div>
+                    </div>
+                    <p className="text-xs text-gray-600">Reasonable to treat non-culprit lesions (staged or same-sitting) based on physiology/imaging guidance (FFR/iwFR).</p>
+                  </div>
+                  <div className="rounded-md border p-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-semibold text-gray-900">Heart Team for complex MVD</span>
+                      <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="C-EO" /></div>
+                    </div>
+                    <p className="text-xs text-gray-600">
+                      Left main disease, 3-vessel disease, DM + MVD, or high SYNTAX: discuss CABG vs PCI.
+                      Use SYNTAX II or EuroSCORE II to guide decision.
+                    </p>
+                  </div>
+                  <div className="rounded-md border p-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-semibold text-gray-900">IVUS/OCT for PCI guidance</span>
+                      <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="A" /></div>
+                    </div>
+                    <p className="text-xs text-gray-600">Intravascular imaging recommended to optimize stent sizing, apposition, and identify complications (ILUMIEN IV, RENOVATE-COMPLEX-PCI).</p>
+                  </div>
+                </>
+              )}
+
+              {/* Shock */}
               {shockPresent && (
                 <div className="rounded-md bg-red-50 border border-red-200 p-3">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-semibold text-red-900">NO Routine Multivessel PCI in Shock</span>
                     <div className="flex gap-1"><CORBadge level="3-harm" /><LOEBadge level="A" /></div>
                   </div>
-                  <p className="text-xs text-red-800">Culprit-only PCI. Multivessel PCI at time of primary PCI is harmful.</p>
+                  <p className="text-xs text-red-800">Culprit-only PCI (CULPRIT-SHOCK). Multivessel PCI at time of primary PCI associated with higher mortality. Staged non-culprit PCI may be considered after stabilization.</p>
                 </div>
               )}
             </div>
           )}
+        </section>
+      )}
+
+      {/* Mechanical Complications */}
+      {acsType && (
+        <section className="rounded-lg border border-red-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Mechanical Complications of MI</h2>
+          <p className="text-xs text-gray-500 mb-4">Typically occur 1-7 days post-MI. High mortality without surgical intervention.</p>
+
+          <div className="space-y-3">
+            {/* Free Wall Rupture */}
+            <div className="rounded-md border border-red-200 p-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-semibold text-red-900 flex items-center gap-1">
+                  <AlertTriangle className="h-3.5 w-3.5" /> Left Ventricular Free Wall Rupture
+                </span>
+              </div>
+              <p className="text-xs text-gray-700 mt-1">
+                <strong>Presentation:</strong> Sudden hemodynamic collapse, PEA/cardiac tamponade, usually 1-5 days post-MI (more common with delayed/no reperfusion)<br />
+                <strong>Diagnosis:</strong> Emergent echo showing pericardial effusion with tamponade<br />
+                <strong>Management:</strong> Immediate pericardiocentesis for stabilization, then emergent surgical repair (Class I). MCS as bridge if needed. Mortality &gt;90% without surgery.
+              </p>
+            </div>
+
+            {/* VSD */}
+            <div className="rounded-md border border-red-200 p-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-semibold text-red-900 flex items-center gap-1">
+                  <AlertTriangle className="h-3.5 w-3.5" /> Ventricular Septal Rupture (VSR)
+                </span>
+                <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="B-NR" /></div>
+              </div>
+              <p className="text-xs text-gray-700 mt-1">
+                <strong>Presentation:</strong> New harsh holosystolic murmur + thrill, acute hemodynamic deterioration, 1-7 days post-MI<br />
+                <strong>Diagnosis:</strong> Echo with color Doppler showing VSD; PA catheter step-up in O2 saturation at RV level<br />
+                <strong>Management:</strong> Emergent surgical repair is recommended. Impella/IABP for hemodynamic support as bridge to surgery. Percutaneous closure may be considered in select cases. Delay of surgery (if stable) to allow tissue maturation is debated but may reduce surgical mortality.
+              </p>
+            </div>
+
+            {/* Papillary Muscle Rupture */}
+            <div className="rounded-md border border-red-200 p-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-semibold text-red-900 flex items-center gap-1">
+                  <AlertTriangle className="h-3.5 w-3.5" /> Papillary Muscle Rupture (Acute MR)
+                </span>
+                <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="B-NR" /></div>
+              </div>
+              <p className="text-xs text-gray-700 mt-1">
+                <strong>Presentation:</strong> New severe MR murmur, flash pulmonary edema, cardiogenic shock. Usually posteromedial papillary muscle (single blood supply from PDA), 2-7 days post-MI<br />
+                <strong>Diagnosis:</strong> Echo showing flail MV leaflet with severe eccentric MR; may have no audible murmur if LA pressure very high<br />
+                <strong>Management:</strong> Emergent surgical MV repair/replacement (Class I). IABP or Impella for afterload reduction and hemodynamic support as bridge to OR. Vasodilators (nitroprusside) if tolerated. Surgical mortality 20-40%.
+              </p>
+            </div>
+
+            {/* RV Infarction */}
+            <div className="rounded-md border p-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-semibold text-gray-900">Right Ventricular Infarction</span>
+                <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="B-NR" /></div>
+              </div>
+              <p className="text-xs text-gray-700 mt-1">
+                <strong>Presentation:</strong> Hypotension, elevated JVP, clear lungs (classic triad) with inferior STEMI. Right-sided ECG leads (V4R) ST-elevation &ge;1mm<br />
+                <strong>Management:</strong> Volume loading (500 mL-1L NS bolus), avoid nitrates/diuretics/morphine (preload-dependent). Reperfusion of RCA is critical. Inotropes (dobutamine) if volume-unresponsive. Avoid IABP (RV dependent on coronary perfusion pressure).
+              </p>
+            </div>
+
+            {/* LV Aneurysm */}
+            <div className="rounded-md border p-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-semibold text-gray-900">LV Aneurysm / LV Thrombus</span>
+                <div className="flex gap-1"><CORBadge level="2a" /><LOEBadge level="C-LD" /></div>
+              </div>
+              <p className="text-xs text-gray-700 mt-1">
+                <strong>LV Aneurysm:</strong> Persistent ST elevation &gt;2 weeks, dyskinetic segment. Increased risk of thrombus, arrhythmia, HF.<br />
+                <strong>LV Thrombus:</strong> Screen with echo (especially anterior/apical MI, LVEF &le;40%). Anticoagulation (warfarin or DOAC) for 3-6 months if thrombus present. Repeat imaging to confirm resolution before stopping.
+              </p>
+            </div>
+
+            {/* Pericarditis */}
+            <div className="rounded-md border p-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-semibold text-gray-900">Post-MI Pericarditis / Dressler Syndrome</span>
+              </div>
+              <p className="text-xs text-gray-700 mt-1">
+                <strong>Early pericarditis (1-3 days):</strong> Pleuritic chest pain, friction rub, diffuse ST elevation. Treat with aspirin 650 mg q6-8h + colchicine 0.5 mg BID. Avoid NSAIDs (Class III Harm in ACS).<br />
+                <strong>Dressler syndrome (2-10 weeks):</strong> Autoimmune pericarditis. Treat with aspirin + colchicine. Corticosteroids only if refractory.
+              </p>
+            </div>
+          </div>
         </section>
       )}
 

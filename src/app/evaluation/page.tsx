@@ -1,9 +1,11 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
-import { Stethoscope, AlertTriangle } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { Stethoscope, AlertTriangle, Ambulance, Car, ChevronDown, ChevronUp } from 'lucide-react';
 import { useACSStore, type ACSType } from '@/store/acsStore';
 import { SummaryBox } from '@/components/ui/SummaryBox';
+import { CORBadge } from '@/components/ui/CORBadge';
+import { LOEBadge } from '@/components/ui/LOEBadge';
 import { cn } from '@/lib/utils';
 
 const RADIATION_OPTIONS = ['Left arm', 'Right arm', 'Jaw', 'Back', 'Epigastric', 'Shoulder'];
@@ -113,6 +115,9 @@ export default function EvaluationPage() {
           <p className="text-sm text-gray-500">ECG, troponin, and ACS classification</p>
         </div>
       </div>
+
+      {/* Prehospital / Arrival Pathway */}
+      <PrehospitalPathway />
 
       {/* ECG Classification */}
       <section className="rounded-lg border bg-white p-5 shadow-sm">
@@ -398,6 +403,141 @@ export default function EvaluationPage() {
         placeholder="Complete ECG, troponin, and symptom assessment to generate a summary."
       />
     </div>
+  );
+}
+
+function PrehospitalPathway() {
+  const [expanded, setExpanded] = useState(false);
+  const [mode, setMode] = useState<'ems' | 'self' | null>(null);
+
+  return (
+    <section className="rounded-lg border bg-white p-5 shadow-sm">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center justify-between w-full text-left"
+      >
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Prehospital & Arrival Pathway</h2>
+          <p className="text-xs text-gray-500">EMS activation (911) vs self-transport decision tree</p>
+        </div>
+        {expanded ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
+      </button>
+
+      {expanded && (
+        <div className="mt-4 space-y-4">
+          <p className="text-sm text-gray-600">How did the patient arrive?</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              onClick={() => setMode('ems')}
+              className={cn(
+                'rounded-lg border-2 p-4 text-left transition-all',
+                mode === 'ems' ? 'bg-blue-50 border-blue-400' : 'bg-white border-gray-200 hover:border-gray-400'
+              )}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Ambulance className="h-5 w-5 text-blue-600" />
+                <span className="text-sm font-semibold text-gray-900">EMS / 911 Activation</span>
+              </div>
+              <p className="text-xs text-gray-600">Ambulance transport with prehospital care</p>
+            </button>
+            <button
+              onClick={() => setMode('self')}
+              className={cn(
+                'rounded-lg border-2 p-4 text-left transition-all',
+                mode === 'self' ? 'bg-amber-50 border-amber-400' : 'bg-white border-gray-200 hover:border-gray-400'
+              )}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Car className="h-5 w-5 text-amber-600" />
+                <span className="text-sm font-semibold text-gray-900">Self-Transport / Walk-in</span>
+              </div>
+              <p className="text-xs text-gray-600">Patient drove, taxi, or walked in to ED</p>
+            </button>
+          </div>
+
+          {/* EMS Pathway */}
+          {mode === 'ems' && (
+            <div className="space-y-3 border-l-4 border-blue-400 pl-4">
+              <h3 className="text-sm font-bold text-blue-900">EMS / 911 Pathway (Recommended)</h3>
+              <div className="rounded-md bg-blue-50 border border-blue-200 p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-semibold text-blue-900">1. Prehospital 12-lead ECG</span>
+                  <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="B-NR" /></div>
+                </div>
+                <p className="text-xs text-blue-700">Acquire and transmit to receiving hospital. Reduces door-to-device time by 10-20 min.</p>
+              </div>
+              <div className="rounded-md bg-blue-50 border border-blue-200 p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-semibold text-blue-900">2. STEMI identified? Activate cath lab en route</span>
+                  <div className="flex gap-1"><CORBadge level="1" /><LOEBadge level="B-NR" /></div>
+                </div>
+                <p className="text-xs text-blue-700">Prehospital cath lab activation for STEMI. EMS should bypass non-PCI hospitals when transfer time &le;120 min.</p>
+              </div>
+              <div className="rounded-md bg-blue-50 border border-blue-200 p-3">
+                <span className="text-sm font-semibold text-blue-900">3. Prehospital treatment</span>
+                <ul className="text-xs text-blue-700 mt-1 space-y-1 list-disc ml-4">
+                  <li>Aspirin 162-325 mg (chewed) — <span className="font-medium">Class I</span></li>
+                  <li>Nitroglycerin SL 0.4 mg q5min x3 (if SBP &ge;90, no RV infarct, no PDE5i)</li>
+                  <li>Obtain IV access, continuous monitoring</li>
+                  <li>Morphine only for refractory pain (Class 2b)</li>
+                  <li>Do NOT delay transport for additional interventions</li>
+                </ul>
+              </div>
+              <div className="rounded-md bg-green-50 border border-green-200 p-3">
+                <span className="text-sm font-semibold text-green-900">4. Hospital destination</span>
+                <ul className="text-xs text-green-700 mt-1 space-y-1 list-disc ml-4">
+                  <li><strong>STEMI:</strong> Transport directly to PCI-capable center (Class I)</li>
+                  <li><strong>STEMI + no PCI available &le;120 min:</strong> Nearest ED for fibrinolysis, then transfer</li>
+                  <li><strong>Non-STEMI suspected ACS:</strong> Nearest appropriate ED</li>
+                  <li><strong>Cardiac arrest / shock:</strong> Closest PCI-capable center with MCS capability</li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* Self-Transport Pathway */}
+          {mode === 'self' && (
+            <div className="space-y-3 border-l-4 border-amber-400 pl-4">
+              <h3 className="text-sm font-bold text-amber-900">Self-Transport / Walk-in Pathway</h3>
+              <div className="rounded-md bg-amber-50 border border-amber-200 p-3">
+                <span className="text-sm font-semibold text-amber-900">1. Immediate triage (target &lt;10 min)</span>
+                <ul className="text-xs text-amber-700 mt-1 space-y-1 list-disc ml-4">
+                  <li>12-lead ECG within 10 minutes of ED arrival (Class I)</li>
+                  <li>Vital signs, IV access, cardiac monitoring</li>
+                  <li>Point-of-care troponin if available</li>
+                </ul>
+              </div>
+              <div className="rounded-md bg-amber-50 border border-amber-200 p-3">
+                <span className="text-sm font-semibold text-amber-900">2. If STEMI on ECG</span>
+                <ul className="text-xs text-amber-700 mt-1 space-y-1 list-disc ml-4">
+                  <li><strong>PCI-capable:</strong> Activate cath lab immediately. Goal: door-to-device &le;90 min</li>
+                  <li><strong>Non-PCI-capable:</strong> Fibrinolysis within 30 min OR transfer for PCI if &le;120 min total</li>
+                  <li>Aspirin 162-325 mg + P2Y12 loading (per reperfusion strategy)</li>
+                </ul>
+              </div>
+              <div className="rounded-md bg-amber-50 border border-amber-200 p-3">
+                <span className="text-sm font-semibold text-amber-900">3. If non-STEMI / undifferentiated chest pain</span>
+                <ul className="text-xs text-amber-700 mt-1 space-y-1 list-disc ml-4">
+                  <li>Serial troponins (0/1h or 0/2h hs-cTn algorithm)</li>
+                  <li>Aspirin 162-325 mg while awaiting results</li>
+                  <li>NTG for ongoing pain, morphine only if refractory</li>
+                  <li>Risk stratify with HEART/TIMI/GRACE when results available</li>
+                </ul>
+              </div>
+              <div className="rounded-md bg-red-50 border border-red-200 p-3">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <AlertTriangle className="h-3.5 w-3.5 text-red-600" />
+                  <span className="text-sm font-semibold text-red-900">Patient education</span>
+                </div>
+                <p className="text-xs text-red-700">
+                  Advise patients to call 911 rather than self-transport for suspected ACS (Class I). EMS provides monitoring, early ECG, prehospital treatment, and direct cath lab transport. Self-transport delays care and risks unmonitored cardiac arrest.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
   );
 }
 
