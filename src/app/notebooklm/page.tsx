@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Loader2, BookOpen, Trash2 } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Send, Bot, User, Loader2, BookOpen, Trash2, Volume2, Square } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useACSStore } from '@/store/acsStore';
 
@@ -11,11 +11,15 @@ interface Message {
   timestamp: number;
 }
 
+type ChatMode = 'explanatory' | 'brief';
+
 export default function NotebookLMPage() {
   const { nlmHistory, addNlmMessage, clearNlmHistory } = useACSStore();
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [mode, setMode] = useState<ChatMode>('explanatory');
+  const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -26,6 +30,35 @@ export default function NotebookLMPage() {
   useEffect(() => {
     scrollToBottom();
   }, [nlmHistory]);
+
+  // Cleanup speech on unmount
+  useEffect(() => {
+    return () => { window.speechSynthesis.cancel(); };
+  }, []);
+
+  const stopSpeaking = useCallback(() => {
+    window.speechSynthesis.cancel();
+    setSpeakingIndex(null);
+  }, []);
+
+  function handleSpeak(text: string, index: number) {
+    if (speakingIndex === index) {
+      stopSpeaking();
+      return;
+    }
+    window.speechSynthesis.cancel();
+    // Strip markdown formatting for cleaner speech
+    const stripped = text
+      .replace(/[#*_`~>\-|]/g, '')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/\n+/g, '. ');
+    const utterance = new SpeechSynthesisUtterance(stripped);
+    utterance.rate = 1;
+    utterance.onend = () => setSpeakingIndex(null);
+    utterance.onerror = () => setSpeakingIndex(null);
+    setSpeakingIndex(index);
+    window.speechSynthesis.speak(utterance);
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +75,7 @@ export default function NotebookLMPage() {
       const res = await fetch(`/api/notebooklm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, conversationId }),
+        body: JSON.stringify({ question, conversationId, mode }),
       });
 
       const data = await res.json();
@@ -63,10 +96,10 @@ export default function NotebookLMPage() {
           timestamp: Date.now(),
         });
       }
-    } catch (err) {
+    } catch {
       addNlmMessage({
         role: 'assistant',
-        content: '⚠️ Network error. Make sure the server is running locally.',
+        content: '⚠️ Network error. Please try again.',
         timestamp: Date.now(),
       });
     } finally {
@@ -103,7 +136,7 @@ export default function NotebookLMPage() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Ask NotebookLM</h1>
               <p className="text-sm text-gray-500">
-                Powered by Google NotebookLM — Ask questions about the 2025 ACC/AHA ACS Guideline
+                Powered by Google NotebookLM — 2025 ACC/AHA ACS Guideline
               </p>
             </div>
           </div>
@@ -112,6 +145,7 @@ export default function NotebookLMPage() {
               onClick={() => {
                 clearNlmHistory();
                 setConversationId(null);
+                stopSpeaking();
               }}
               className="flex items-center gap-1 text-sm text-gray-400 hover:text-red-500 transition-colors"
             >
@@ -122,8 +156,7 @@ export default function NotebookLMPage() {
         </div>
         <div className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
           <p className="text-xs text-orange-700">
-            💡 NotebookLM has the full ACS2025 guideline indexed. Provides cited answers directly from the source document.
-            Conversation context is maintained — follow-up questions work naturally.
+            💡 Cited answers from the guideline. Follow-up questions maintain context. Use 🔊 to read answers aloud.
           </p>
         </div>
       </div>
@@ -137,8 +170,7 @@ export default function NotebookLMPage() {
               Ask anything about the 2025 ACS Guideline
             </h2>
             <p className="text-sm text-gray-500 mb-6 max-w-md">
-              Get evidence-based answers with citations directly from the guideline.
-              Try one of these:
+              Get evidence-based answers with citations. Try one of these:
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-2xl w-full">
               {exampleQuestions.map((q, i) => (
@@ -171,9 +203,23 @@ export default function NotebookLMPage() {
                 }`}
               >
                 {msg.role === 'assistant' ? (
-                  <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900">
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
-                  </div>
+                  <>
+                    <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                    {/* Read aloud button */}
+                    <button
+                      onClick={() => handleSpeak(msg.content, i)}
+                      className="mt-2 flex items-center gap-1 text-xs text-gray-400 transition-colors hover:text-orange-600"
+                      aria-label={speakingIndex === i ? 'Stop reading' : 'Read aloud'}
+                    >
+                      {speakingIndex === i ? (
+                        <><Square className="h-3 w-3" /> Stop</>
+                      ) : (
+                        <><Volume2 className="h-3 w-3" /> Read aloud</>
+                      )}
+                    </button>
+                  </>
                 ) : (
                   <p className="text-sm">{msg.content}</p>
                 )}
@@ -222,9 +268,38 @@ export default function NotebookLMPage() {
             <Send className="h-5 w-5" />
           </button>
         </form>
-        <p className="text-xs text-gray-400 mt-2 text-center">
-          Responses are generated from the indexed ACS2025 guideline via Google NotebookLM. May take 10-30s.
-        </p>
+
+        {/* Mode toggle */}
+        <div className="flex items-center justify-between mt-2">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-gray-400">Mode:</span>
+            <button
+              type="button"
+              onClick={() => setMode('brief')}
+              className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
+                mode === 'brief'
+                  ? 'bg-orange-600 text-white'
+                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              }`}
+            >
+              Brief
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('explanatory')}
+              className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
+                mode === 'explanatory'
+                  ? 'bg-orange-600 text-white'
+                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              }`}
+            >
+              Explanatory
+            </button>
+          </div>
+          <p className="text-xs text-gray-400">
+            {mode === 'brief' ? 'Concise numbered points' : 'Detailed explanations'}
+          </p>
+        </div>
       </div>
     </div>
   );
