@@ -481,7 +481,7 @@ export default function MedicationsPage() {
 
       {/* Other */}
       <section className="rounded-lg border bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Other</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Other Medications</h2>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <label className="flex items-center gap-2 cursor-pointer">
@@ -574,7 +574,7 @@ export default function MedicationsPage() {
         <div className="space-y-3">
           <div className="rounded-md bg-orange-50 border border-orange-200 p-3">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-semibold text-orange-900">Section 10.2 Recommendation</span>
+              <span className="text-sm font-semibold text-orange-900">Management of Anemia in ACS</span>
               <div className="flex gap-1"><CORBadge level="2b" /><LOEBadge level="B-R" /></div>
             </div>
             <p className="text-sm text-gray-900">
