@@ -441,76 +441,94 @@ function calculateGRACE(inputs: {
     };
   }
 
-  // Simplified GRACE score calculation using point assignment
-  let score = 0;
+  // More faithful GRACE point interpolation based on the published nomogram-style scoring
+  // used by clinical calculators, instead of coarse bucket assignment.
+  // Validation case from MDCalc: age 83, HR 65, SBP 116, creatinine 0.71 mg/dL,
+  // Killip I, no arrest, no ST deviation, elevated troponin -> score 134.
 
-  // Age points
-  if (age < 30) score += 0;
-  else if (age < 40) score += 8;
-  else if (age < 50) score += 25;
-  else if (age < 60) score += 41;
-  else if (age < 70) score += 58;
-  else if (age < 80) score += 75;
-  else if (age < 90) score += 91;
-  else score += 100;
+  const agePoints = (() => {
+    if (age < 35) return 0
+    if (age < 45) return (age - 35) * 1.8
+    if (age < 55) return 18 + (age - 45) * 1.8
+    if (age < 65) return 36 + (age - 55) * 1.8
+    if (age < 75) return 54 + (age - 65) * 1.9
+    if (age < 85) return 73 + (age - 75) * 1.8
+    if (age < 90) return 91 + (age - 85) * 1.8
+    return 100
+  })()
 
-  // Heart rate points
-  if (heartRate < 50) score += 0;
-  else if (heartRate < 70) score += 3;
-  else if (heartRate < 90) score += 9;
-  else if (heartRate < 110) score += 15;
-  else if (heartRate < 150) score += 24;
-  else if (heartRate < 200) score += 38;
-  else score += 46;
+  const heartRatePoints = (() => {
+    if (heartRate < 70) return 0
+    if (heartRate < 80) return (heartRate - 70) * 0.3
+    if (heartRate < 90) return 3 + (heartRate - 80) * 0.2
+    if (heartRate < 100) return 5 + (heartRate - 90) * 0.3
+    if (heartRate < 110) return 8 + (heartRate - 100) * 0.2
+    if (heartRate < 150) return 10 + (heartRate - 110) * 0.3
+    if (heartRate < 200) return 22 + (heartRate - 150) * 0.3
+    return 34
+  })()
 
-  // Systolic BP points (inverse)
-  if (systolicBP < 80) score += 58;
-  else if (systolicBP < 100) score += 53;
-  else if (systolicBP < 120) score += 43;
-  else if (systolicBP < 140) score += 34;
-  else if (systolicBP < 160) score += 24;
-  else if (systolicBP < 200) score += 10;
-  else score += 0;
+  const sbpPoints = (() => {
+    if (systolicBP < 80) return 40
+    if (systolicBP < 100) return 40 - (systolicBP - 80) * 0.3
+    if (systolicBP < 110) return 34 - (systolicBP - 100) * 0.3
+    if (systolicBP < 120) return 31 - (systolicBP - 110) * 0.4
+    if (systolicBP < 130) return 27 - (systolicBP - 120) * 0.3
+    if (systolicBP < 140) return 24 - (systolicBP - 130) * 0.3
+    if (systolicBP < 150) return 20 - (systolicBP - 140) * 0.4
+    if (systolicBP < 160) return 17 - (systolicBP - 150) * 0.3
+    if (systolicBP < 180) return 14 - (systolicBP - 160) * 0.3
+    if (systolicBP < 200) return 8 - (systolicBP - 180) * 0.4
+    return 0
+  })()
 
-  // Creatinine points
-  if (creatinine < 0.4) score += 1;
-  else if (creatinine < 0.8) score += 4;
-  else if (creatinine < 1.2) score += 7;
-  else if (creatinine < 1.6) score += 10;
-  else if (creatinine < 2.0) score += 13;
-  else if (creatinine < 4.0) score += 21;
-  else score += 28;
+  // Creatinine is entered as mg/dL in this UI, so apply the nomogram directly in mg/dL.
+  const creatininePoints = (() => {
+    if (creatinine < 0.2) return creatinine * 5
+    if (creatinine < 0.4) return 1 + (creatinine - 0.2) * 10
+    if (creatinine < 0.6) return 3 + (creatinine - 0.4) * 5
+    if (creatinine < 0.8) return 4 + (creatinine - 0.6) * 10
+    if (creatinine < 1.0) return 6 + (creatinine - 0.8) * 5
+    if (creatinine < 1.2) return 7 + (creatinine - 1.0) * 5
+    if (creatinine < 1.4) return 8 + (creatinine - 1.2) * 10
+    if (creatinine < 1.6) return 10 + (creatinine - 1.4) * 5
+    if (creatinine < 1.8) return 11 + (creatinine - 1.6) * 10
+    if (creatinine < 2.0) return 13 + (creatinine - 1.8) * 5
+    if (creatinine < 3.0) return 14 + (creatinine - 2.0) * 7
+    if (creatinine < 4.0) return 21 + (creatinine - 3.0) * 7
+    return 28
+  })()
 
-  // Killip class points
-  const killipPoints = [0, 0, 20, 39, 59];
-  score += killipPoints[killipClass] || 0;
+  const killipPoints = [0, 0, 15, 29, 44]
 
-  // Binary variables
-  if (cardiacArrest) score += 39;
-  if (stDeviation) score += 28;
-  if (elevatedTroponin) score += 14;
+  let score = agePoints + heartRatePoints + sbpPoints + creatininePoints + (killipPoints[killipClass] || 0)
+  if (cardiacArrest) score += 30
+  if (stDeviation) score += 17
+  if (elevatedTroponin) score += 13
 
-  // Mortality estimation
-  let inHospitalMortality = '';
-  let sixMonthMortality = '';
+  const total = Math.round(score)
 
-  if (score <= 108) {
-    inHospitalMortality = '<1%';
-    sixMonthMortality = '<3%';
-  } else if (score <= 140) {
-    inHospitalMortality = '1-3%';
-    sixMonthMortality = '3-8%';
-  } else if (score <= 170) {
-    inHospitalMortality = '3-10%';
-    sixMonthMortality = '8-15%';
+  // Approximate risk bands preserved for clinical framing; score itself is now much closer to MDCalc.
+  let inHospitalMortality = ''
+  let sixMonthMortality = ''
+
+  if (total <= 108) {
+    inHospitalMortality = '<1%'
+    sixMonthMortality = '<3%'
+  } else if (total <= 140) {
+    inHospitalMortality = '1-3%'
+    sixMonthMortality = '3-13%'
+  } else if (total <= 170) {
+    inHospitalMortality = '3-10%'
+    sixMonthMortality = '13-25%'
   } else {
-    inHospitalMortality = '>10%';
-    sixMonthMortality = '>15%';
+    inHospitalMortality = '>10%'
+    sixMonthMortality = '>25%'
   }
 
   return {
     inputs: inputs as typeof inputs & { killipClass: 1 | 2 | 3 | 4 },
-    total: score,
+    total,
     inHospitalMortality,
     sixMonthMortality,
   };
